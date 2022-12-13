@@ -7,6 +7,7 @@ from airflow.models.dag import DAG
 from airflow.utils.task_group import TaskGroup
 from sqlalchemy import create_engine
 from datetime import datetime
+import time
 
 
 # extract tasks
@@ -40,12 +41,44 @@ def get_daily_exchange_rate():
     df_exchange_rate.to_sql(f'src_usd_{currency.lower()}', engine, if_exists='replace', index=True)
 
 
+# transform and load task
+# create a new dataframe consisting of close price (in USD) of a stock with a given symbol and close currency exchange
+# rate, then calculate the stock price in the choosen currency and add it to the created dataframe and then load
+# this dataframe into a database
+@task()
+def calc_load_daily_price_other_ccy():
+    time.sleep(5)  # wait 5 seconds to allow database to update tables after extract tasks
+    conn = BaseHook.get_connection('postgres_alphavantage')
+    engine = create_engine(f'postgresql://{conn.login}:{conn.password}@{conn.host}:{conn.port}/{conn.schema}')
+    df_price_usd = pd.read_sql_query(f'SELECT * FROM public."src_{symbol.lower()}_price_usd" ',
+                                     engine, index_col="index")
+    df_exchange_rate = pd.read_sql_query(f'SELECT * FROM public."src_usd_{currency.lower()}" ',
+                                         engine, index_col="index")
+
+    df_price_usd.drop(['1. open', '2. high', '3. low', '5. adjusted close',
+                       '6. volume', '7. dividend amount', '8. split coefficient'],
+                      axis=1, inplace=True)
+    df_price_usd.rename(columns={'4. close': 'closePriceUsd'}, inplace=True)
+
+    df_exchange_rate.drop(['1. open', '2. high', '3. low'], axis=1, inplace=True)
+    df_exchange_rate.rename(columns={'4. close': 'closeRate'}, inplace=True)
+
+    df_price_other_ccy = df_price_usd.join(df_exchange_rate)
+    df_price_other_ccy[f'closePrice{currency.title()}'] = \
+        df_price_other_ccy['closePriceUsd'] * df_price_other_ccy['closeRate']
+
+    df_price_other_ccy[f'closePrice{currency.title()}'] = round(df_price_other_ccy[f'closePrice{currency.title()}'], 2)
+
+    df_price_other_ccy.to_sql(f'prd_{symbol.lower()}_price_{currency.lower()}', engine, if_exists='replace', index=True)
+
+
 with DAG(dag_id="alphavantage_etl_dag", schedule_interval="*/5 * * * *", start_date=datetime(2022, 12, 1),
          catchup=False, tags=["alphavantage"]) as dag:
 
     symbol = "SPY"
     currency = "PLN"
 
+    # extract
     with TaskGroup("extract_load_src", tooltip="Extract and load symbol price in USD and currency exchange rate") \
             as extract_load_src:
         src_daily_price = get_daily_price()
@@ -53,5 +86,8 @@ with DAG(dag_id="alphavantage_etl_dag", schedule_interval="*/5 * * * *", start_d
         # order
         [src_daily_price, src_daily_exchange_rate]
 
+    # transform and load
+    transform_load = calc_load_daily_price_other_ccy()
+
     # order
-    extract_load_src
+    extract_load_src >> transform_load
