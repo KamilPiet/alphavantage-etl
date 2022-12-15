@@ -50,10 +50,8 @@ def calc_load_daily_price_other_ccy():
     time.sleep(5)  # wait 5 seconds to allow database to update tables after extract tasks
     conn = BaseHook.get_connection('postgres_alphavantage')
     engine = create_engine(f'postgresql://{conn.login}:{conn.password}@{conn.host}:{conn.port}/{conn.schema}')
-    df_price_usd = pd.read_sql_query(f'SELECT * FROM public."src_{symbol.lower()}_price_usd" ',
-                                     engine, index_col="index")
-    df_exchange_rate = pd.read_sql_query(f'SELECT * FROM public."src_usd_{currency.lower()}" ',
-                                         engine, index_col="index")
+    df_price_usd = pd.read_sql_query(f'SELECT * FROM public.src_{symbol.lower()}_price_usd ', engine, index_col="index")
+    df_exchange_rate = pd.read_sql_query(f'SELECT * FROM public.src_usd_{currency.lower()}', engine, index_col="index")
 
     df_price_usd.drop(['1. open', '2. high', '3. low', '5. adjusted close',
                        '6. volume', '7. dividend amount', '8. split coefficient'],
