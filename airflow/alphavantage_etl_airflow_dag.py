@@ -5,7 +5,7 @@ from airflow.decorators import task
 from airflow.hooks.base import BaseHook
 from airflow.models.dag import DAG
 from airflow.utils.task_group import TaskGroup
-from sqlalchemy import create_engine, exc
+from sqlalchemy import create_engine
 from datetime import datetime, date
 import time
 import numpy as np
@@ -18,31 +18,30 @@ def get_daily_price():
     conn = BaseHook.get_connection('postgres_alphavantage')
     engine = create_engine(f'postgresql://{conn.login}:{conn.password}@{conn.host}:{conn.port}/{conn.schema}')
     df_holidays = pd.read_sql_query(f'SELECT * FROM public.holidays', engine)
+    # np array with dates from 01-01-2016 to 31-12-2024 when NYSE was or will be closed
     holidays = df_holidays.to_numpy(dtype='datetime64').flatten()
     try:
         df_recent = pd.read_sql_query(f'SELECT date FROM public.src_{symbol.lower()}_price_usd ORDER BY date DESC '
                                       f'LIMIT 1', engine)
         recent = datetime.strptime(df_recent.iloc[0].iat[0], '%Y-%m-%d').date()
+        # calculates business day difference between the last database record's date and yesterday's date taking into
+        # account holidays when NYSE was closed
         date_diff = np.busday_count(recent, date.today(), holidays=holidays) - 1
         print(f'{date_diff} business days behind')
         if date_diff <= 1:
             print('No need to pull data')
             return
         elif date_diff <= 100:
-            output_size = 'compact'
+            output_size = 'compact'  # pulls only 100 most recent records
             print('Pulling 100 rows')
         else:
-            output_size = 'full'
+            output_size = 'full'  # pulls all records
             print('Pulling all available data')
         table_exists = True
-    except exc.ProgrammingError as e:  # to catch an exception, when the table does not exist
+    except Exception as e:  # to catch all exceptions
         print(e)
         output_size = 'full'
-        table_exists = False
-        print('Pulling all available data')
-    except:                            # to catch other exceptions
-        output_size = 'full'
-        table_exists = False
+        table_exists = False  # making an assumption that table does not exist
         print('Pulling all available data')
 
     url = f'https://www.alphavantage.co/query?function=TIME_SERIES_DAILY_ADJUSTED&symbol={symbol}' \
@@ -72,26 +71,23 @@ def get_daily_exchange_rate():
         df_recent = pd.read_sql_query(f'SELECT date FROM public.src_usd_{currency.lower()} ORDER BY date DESC '
                                       f'LIMIT 1', engine)
         recent = datetime.strptime(df_recent.iloc[0].iat[0], '%Y-%m-%d').date()
+        # calculates business day difference between the last database record's date and yesterday's date
         date_diff = np.busday_count(recent, date.today()) - 1
         print(f'{date_diff} business days behind')
         if date_diff <= 1:
             print('No need to pull data')
             return
         elif date_diff <= 100:
-            output_size = 'compact'
+            output_size = 'compact'  # pulls only 100 most recent records
             print('Pulling 100 rows')
         else:
-            output_size = 'full'
+            output_size = 'full'  # pulls all records
             print('Pulling all available data')
         table_exists = True
-    except exc.ProgrammingError as e:  # to catch an exception, when the table does not exist
+    except Exception as e:  # to catch all exceptions
         print(e)
         output_size = 'full'
-        table_exists = False
-        print('Pulling all available data')
-    except:                            # to catch other exceptions
-        output_size = 'full'
-        table_exists = False
+        table_exists = False  # making an assumption that table does not exist
         print('Pulling all available data')
 
     url = f'https://www.alphavantage.co/query?function=FX_DAILY&from_symbol=USD&to_symbol={currency}' \
@@ -140,6 +136,7 @@ def calc_load_daily_price_other_ccy():
     df_price_other_ccy.to_sql(f'prd_{symbol.lower()}_price_{currency.lower()}', engine, if_exists='replace', index=True)
 
 
+# this DAG will be triggered at midnight after every business day
 with DAG(dag_id="alphavantage_etl_dag", schedule_interval="0 0 * * 2-6", start_date=datetime(2022, 12, 1),
          catchup=False, tags=["alphavantage"]) as dag:
 
