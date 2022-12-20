@@ -27,8 +27,8 @@ def get_daily_price():
         # calculates business day difference between the last database record's date and yesterday's date taking into
         # account holidays when NYSE was closed
         date_diff = np.busday_count(recent, date.today(), holidays=holidays) - 1
-        print(f'{date_diff} business days behind')
-        if date_diff <= 1:
+        print(f'{date_diff} business day(s) behind')
+        if date_diff == 0:
             print('No need to pull data')
             return
         elif date_diff <= 100:
@@ -73,8 +73,8 @@ def get_daily_exchange_rate():
         recent = datetime.strptime(df_recent.iloc[0].iat[0], '%Y-%m-%d').date()
         # calculates business day difference between the last database record's date and yesterday's date
         date_diff = np.busday_count(recent, date.today()) - 1
-        print(f'{date_diff} business days behind')
-        if date_diff <= 1:
+        print(f'{date_diff} business day(s) behind')
+        if date_diff == 0:
             print('No need to pull data')
             return
         elif date_diff <= 100:
