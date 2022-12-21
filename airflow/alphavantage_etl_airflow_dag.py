@@ -117,15 +117,45 @@ def calc_load_daily_price_other_ccy():
     time.sleep(5)  # wait 5 seconds to allow database to update tables after extract tasks
     conn = BaseHook.get_connection('postgres_alphavantage')
     engine = create_engine(f'postgresql://{conn.login}:{conn.password}@{conn.host}:{conn.port}/{conn.schema}')
-    df_price_usd = pd.read_sql_query(f'SELECT * FROM public.src_{symbol.lower()}_price_usd ', engine, index_col="date")
-    df_exchange_rate = pd.read_sql_query(f'SELECT * FROM public.src_usd_{currency.lower()}', engine, index_col="date")
+    df_holidays = pd.read_sql_query(f'SELECT * FROM public.holidays', engine)
+    # np array with dates from 01-01-2016 to 31-12-2024 when NYSE was or will be closed
+    holidays = df_holidays.to_numpy(dtype='datetime64').flatten()
+    try:
+        df_recent = pd.read_sql_query(f'SELECT date FROM public.prd_{symbol.lower()}_price_{currency.lower()} '
+                                      f'ORDER BY date DESC LIMIT 1', engine)
+        recent = datetime.strptime(df_recent.iloc[0].iat[0], '%Y-%m-%d').date()
+        # calculates business day difference between the last database record's date and yesterday's date taking into
+        # account holidays when NYSE was closed
+        nyse_date_diff = np.busday_count(recent, date.today(), holidays=holidays) - 1
+        # calculates business day difference between the last database record's date and yesterday's date
+        forex_date_diff = np.busday_count(recent, date.today()) - 1
+        if nyse_date_diff == 0:
+            print(f'Table prd_{symbol.lower()}_price_{currency.lower()} is up to date')
+            return
+        table_exists = True
+        print(f'Pulling {nyse_date_diff} row(s) from src_{symbol.lower()}_price_usd')
+        print(f'Pulling {forex_date_diff} row(s) from src_usd_{currency.lower()}')
+    except Exception as e:  # to catch all exceptions
+        print(e)
+        table_exists = False  # making an assumption that table does not exist
+        print(f'Pulling all rows from src_{symbol.lower()}_price_usd and src_usd_{currency.lower()}')
 
-    df_price_usd.drop(['1. open', '2. high', '3. low', '5. adjusted close',
-                       '6. volume', '7. dividend amount', '8. split coefficient'],
-                      axis=1, inplace=True)
+    if table_exists:
+        # pulls only necessary rows
+        df_price_usd = pd.read_sql_query(f'SELECT date, "4. close" '
+                                         f'FROM public.src_{symbol.lower()}_price_usd ORDER BY date '
+                                         f'DESC LIMIT {nyse_date_diff}', engine, index_col="date")
+        df_exchange_rate = pd.read_sql_query(f'SELECT date, "4. close" '
+                                             f'FROM public.src_usd_{currency.lower()} ORDER BY date '
+                                             f'DESC LIMIT {forex_date_diff}', engine, index_col="date")
+    else:
+        # pulls all rows
+        df_price_usd = pd.read_sql_query(f'SELECT date, "4. close" FROM public.src_{symbol.lower()}_price_usd ', engine,
+                                         index_col="date")
+        df_exchange_rate = pd.read_sql_query(f'SELECT date, "4. close" FROM public.src_usd_{currency.lower()}', engine,
+                                             index_col="date")
+
     df_price_usd.rename(columns={'4. close': 'closePriceUsd'}, inplace=True)
-
-    df_exchange_rate.drop(['1. open', '2. high', '3. low'], axis=1, inplace=True)
     df_exchange_rate.rename(columns={'4. close': 'closeRate'}, inplace=True)
 
     df_price_other_ccy = df_price_usd.join(df_exchange_rate)
@@ -134,7 +164,11 @@ def calc_load_daily_price_other_ccy():
 
     df_price_other_ccy[f'closePrice{currency.title()}'] = round(df_price_other_ccy[f'closePrice{currency.title()}'], 2)
 
-    df_price_other_ccy.to_sql(f'prd_{symbol.lower()}_price_{currency.lower()}', engine, if_exists='replace', index=True)
+    df_price_other_ccy.to_sql(f'prd_{symbol.lower()}_price_{currency.lower()}', engine, if_exists='append', index=True,
+                              index_label='date')
+    if not table_exists:
+        with engine.connect() as con:
+            con.execute(f'ALTER TABLE prd_{symbol.lower()}_price_{currency.lower()} ADD PRIMARY KEY (date);')
 
 
 # this DAG will be triggered at midnight after every business day
