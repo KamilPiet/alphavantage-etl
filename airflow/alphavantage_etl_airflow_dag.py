@@ -72,7 +72,7 @@ def get_daily_exchange_rate():
                                       f'LIMIT 1', engine)
         recent = datetime.strptime(df_recent.iloc[0].iat[0], '%Y-%m-%d').date()
         # calculates business day difference between the last database record's date and yesterday's date
-        date_diff = np.busday_count(recent, date.today()) - 1
+        date_diff = np.busday_count(recent, date.today())
         print(f'{date_diff} business day(s) behind')
         if date_diff == 0:
             print('No need to pull data')
@@ -99,6 +99,7 @@ def get_daily_exchange_rate():
 
     if table_exists:
         df_exchange_rate = df_exchange_rate.tail(date_diff)  # keep only those rows, that are missing from the database
+        df_exchange_rate.drop(df_exchange_rate.tail(1).index, inplace=True)  # drop data from current day
     for col in df_exchange_rate:
         df_exchange_rate[col] = pd.to_numeric(df_exchange_rate[col])
     df_exchange_rate.to_sql(f'src_usd_{currency.lower()}', engine, if_exists='append', index=True, index_label='date')
