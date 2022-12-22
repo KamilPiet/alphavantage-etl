@@ -23,7 +23,7 @@ def get_daily_price():
     try:
         df_recent = pd.read_sql_query(f'SELECT date FROM public.src_{symbol.lower()}_price_usd ORDER BY date DESC '
                                       f'LIMIT 1', engine)
-        recent = datetime.strptime(df_recent.iloc[0].iat[0], '%Y-%m-%d').date()
+        recent = df_recent.iloc[0].iat[0].date()
         # calculates business day difference between the last database record's date and yesterday's date taking into
         # account holidays when NYSE was closed
         date_diff = np.busday_count(recent, date.today(), holidays=holidays) - 1
@@ -55,6 +55,7 @@ def get_daily_price():
         df_price_usd = df_price_usd.tail(date_diff)  # keep only those rows, that are missing from the database
     for col in df_price_usd:
         df_price_usd[col] = pd.to_numeric(df_price_usd[col])
+    df_price_usd.index = pd.to_datetime(df_price_usd.index)
 
     df_price_usd.to_sql(f'src_{symbol.lower()}_price_usd', engine, if_exists='append', index=True, index_label='date')
     if not table_exists:
@@ -70,7 +71,7 @@ def get_daily_exchange_rate():
     try:
         df_recent = pd.read_sql_query(f'SELECT date FROM public.src_usd_{currency.lower()} ORDER BY date DESC '
                                       f'LIMIT 1', engine)
-        recent = datetime.strptime(df_recent.iloc[0].iat[0], '%Y-%m-%d').date()
+        recent = df_recent.iloc[0].iat[0].date()
         # calculates business day difference between the last database record's date and yesterday's date
         date_diff = np.busday_count(recent, date.today())
         print(f'{date_diff} business day(s) behind')
@@ -99,9 +100,12 @@ def get_daily_exchange_rate():
 
     if table_exists:
         df_exchange_rate = df_exchange_rate.tail(date_diff)  # keep only those rows, that are missing from the database
-        df_exchange_rate.drop(df_exchange_rate.tail(1).index, inplace=True)  # drop data from current day
+    df_exchange_rate.drop(df_exchange_rate.tail(1).index, inplace=True)  # drop the data from the current day
+
     for col in df_exchange_rate:
         df_exchange_rate[col] = pd.to_numeric(df_exchange_rate[col])
+    df_exchange_rate.index = pd.to_datetime(df_exchange_rate.index)
+
     df_exchange_rate.to_sql(f'src_usd_{currency.lower()}', engine, if_exists='append', index=True, index_label='date')
     if not table_exists:
         with engine.connect() as con:
@@ -123,7 +127,7 @@ def calc_load_daily_price_other_ccy():
     try:
         df_recent = pd.read_sql_query(f'SELECT date FROM public.prd_{symbol.lower()}_price_{currency.lower()} '
                                       f'ORDER BY date DESC LIMIT 1', engine)
-        recent = datetime.strptime(df_recent.iloc[0].iat[0], '%Y-%m-%d').date()
+        recent = df_recent.iloc[0].iat[0].date()
         # calculates business day difference between the last database record's date and yesterday's date taking into
         # account holidays when NYSE was closed
         nyse_date_diff = np.busday_count(recent, date.today(), holidays=holidays) - 1
