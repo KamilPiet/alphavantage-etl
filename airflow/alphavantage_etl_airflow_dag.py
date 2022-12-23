@@ -74,8 +74,8 @@ def get_daily_exchange_rate():
         recent = df_recent.iloc[0].iat[0].date()
         # calculates business day difference between the last database record's date and yesterday's date
         date_diff = np.busday_count(recent, date.today())
-        print(f'{date_diff} business day(s) behind')
-        if date_diff == 0:
+        print(f'{date_diff - 1} business day(s) behind')
+        if date_diff <= 1:
             print('No need to pull data')
             return
         elif date_diff <= 100:
