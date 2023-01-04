@@ -7,8 +7,8 @@ from airflow.models.dag import DAG
 from airflow.utils.task_group import TaskGroup
 from sqlalchemy import create_engine
 from datetime import datetime, date
-import time
 import numpy as np
+from retry import retry
 
 
 # extract tasks
@@ -117,8 +117,8 @@ def get_daily_exchange_rate():
 # rate, then calculate the stock price in the choosen currency and add it to the created dataframe and then load
 # this dataframe into a database
 @task()
+@retry(Exception, tries=5, delay=1)
 def calc_load_daily_price_other_ccy():
-    time.sleep(5)  # wait 5 seconds to allow database to update tables after extract tasks
     conn = BaseHook.get_connection('postgres_alphavantage')
     engine = create_engine(f'postgresql://{conn.login}:{conn.password}@{conn.host}:{conn.port}/{conn.schema}')
     df_holidays = pd.read_sql_query(f'SELECT * FROM public.holidays', engine)
