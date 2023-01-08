@@ -28,7 +28,7 @@ def get_daily_price():
         # account holidays when NYSE was closed
         date_diff = np.busday_count(recent, date.today(), holidays=holidays) - 1
         print(f'{date_diff} business day(s) behind')
-        if date_diff == 0:
+        if date_diff <= 0:
             print('No need to pull data')
             return
         elif date_diff <= 100:
@@ -98,9 +98,14 @@ def get_daily_exchange_rate():
     # convert time series to df, then transpose df and reverse rows
     df_exchange_rate = pd.DataFrame(data["Time Series FX (Daily)"]).transpose().iloc[::-1]
 
-    if table_exists:
-        df_exchange_rate = df_exchange_rate.tail(date_diff)  # keep only those rows, that are missing from the database
-    df_exchange_rate.drop(df_exchange_rate.tail(1).index, inplace=True)  # drop the data from the current day
+    if date.today().weekday() < 5:
+        if table_exists:
+            # keep only those rows, that are missing from the database
+            df_exchange_rate = df_exchange_rate.tail(date_diff)
+        df_exchange_rate.drop(df_exchange_rate.tail(1).index, inplace=True)  # drop the data from the current day
+    else:
+        if table_exists:
+            df_exchange_rate = df_exchange_rate.tail(date_diff-1)
 
     for col in df_exchange_rate:
         df_exchange_rate[col] = pd.to_numeric(df_exchange_rate[col])
