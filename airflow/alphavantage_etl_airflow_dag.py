@@ -9,6 +9,9 @@ from sqlalchemy import create_engine
 from datetime import datetime, date
 import numpy as np
 from retry import retry
+import datapane as dp
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 
 
 # extract tasks
@@ -181,6 +184,99 @@ def calc_load_daily_price_other_ccy():
             con.execute(f'ALTER TABLE prd_{symbol.lower()}_price_{currency.lower()} ADD PRIMARY KEY (date);')
 
 
+# data visualization task
+@task()
+def visualize_data():
+    os.system(f'datapane login --token={os.getenv("DATAPANE_TOKEN")}')
+    conn = BaseHook.get_connection('postgres_alphavantage')
+    engine = create_engine(f'postgresql://{conn.login}:{conn.password}@{conn.host}:{conn.port}/{conn.schema}')
+    df_price_usd = pd.read_sql_query(f'SELECT date, "1. open", "2. high", "3. low", "4. close" '
+                                     f'FROM public.src_{symbol.lower()}_price_usd ORDER BY date DESC', engine)
+    df_exchange_rate = pd.read_sql_query(f'SELECT * FROM public.src_usd_{currency.lower()} ORDER BY date DESC', engine)
+    df_price_other_ccy = pd.read_sql_query(f'SELECT * FROM public.prd_{symbol.lower()}_price_{currency.lower()} '
+                                           f'ORDER BY date DESC', engine)
+
+    html_title = f'''
+        <html>
+            <style type='text/css'>
+                #container {{
+                    margin: auto;
+                    text-align: center;
+                    height: 50px;
+                }}
+                h1 {{
+                    color:#444444;
+                }}
+            </style>
+            <div id="container">
+              <h1>{symbol.upper()} price report</h1>
+            </div>
+        </html>
+        '''
+    fig1_title = f'{symbol.upper()} price in USD'
+    fig2_title = f'USD/{currency.upper()} exchange rate'
+    fig3_title = f'{symbol.upper()} price in {currency.upper()} and USD'
+
+    fig1 = go.Figure(data=[go.Candlestick(x=df_price_usd['date'],
+                                          open=df_price_usd['1. open'],
+                                          high=df_price_usd['2. high'],
+                                          low=df_price_usd['3. low'],
+                                          close=df_price_usd['4. close'])
+                           ])
+    fig1.update_layout(
+        xaxis_rangeslider_visible=False,
+        xaxis_title='Date',
+        yaxis_title='Price'
+    )
+
+    fig2 = go.Figure(data=[go.Candlestick(x=df_exchange_rate['date'],
+                                          open=df_exchange_rate['1. open'],
+                                          high=df_exchange_rate['2. high'],
+                                          low=df_exchange_rate['3. low'],
+                                          close=df_exchange_rate['4. close'])
+                           ])
+    fig2.update_layout(
+        xaxis_rangeslider_visible=False,
+        xaxis_title='Date',
+        yaxis_title='Exchange rate'
+    )
+
+    fig3 = make_subplots(specs=[[{'secondary_y': True}]])
+
+    fig3.add_trace(
+        go.Scatter(
+            x=df_price_other_ccy['date'], y=df_price_other_ccy[f'closePrice{currency.title()}'],
+            name=f'Close price in {currency.upper()}'
+        ),
+        secondary_y=False,
+    )
+
+    fig3.add_trace(
+        go.Scatter(
+            x=df_price_other_ccy['date'], y=df_price_other_ccy['closePriceUsd'],
+            name='Close price in USD'
+        ),
+        secondary_y=True,
+    )
+
+    fig3.update_xaxes(title_text='Date')
+    fig3.update_yaxes(title_text=f'Close price in {currency.upper()}', secondary_y=False)
+    fig3.update_yaxes(title_text='Close price in USD', secondary_y=True)
+
+    report = dp.Report(
+        dp.HTML(html_title),
+        dp.Text(fig1_title),
+        dp.Plot(fig1),
+        dp.Text(fig2_title),
+        dp.Plot(fig2),
+        dp.Text(fig3_title),
+        dp.Plot(fig3)
+    )
+
+    report.save('alphavantage-etl', open=True)
+    report.upload(name='alphavantage-etl')
+
+
 # this DAG will be triggered at midnight after every business day
 with DAG(dag_id="alphavantage_etl_dag", schedule_interval="0 0 * * 2-6", start_date=datetime(2022, 12, 1),
          catchup=False, tags=["alphavantage"]) as dag:
@@ -199,5 +295,8 @@ with DAG(dag_id="alphavantage_etl_dag", schedule_interval="0 0 * * 2-6", start_d
     # transform and load
     transform_load = calc_load_daily_price_other_ccy()
 
+    # visualize
+    visualize = visualize_data()
+
     # order
-    extract_load_src >> transform_load
+    extract_load_src >> transform_load >> visualize
