@@ -168,6 +168,7 @@ def calc_load_daily_price_other_ccy():
     df_exchange_rate.rename(columns={'4. close': 'closeRate'}, inplace=True)
 
     df_price_other_ccy = df_price_usd.join(df_exchange_rate)
+    df_price_other_ccy.dropna(inplace=True)
     df_price_other_ccy[f'closePrice{currency.title()}'] = \
         df_price_other_ccy['closePriceUsd'] * df_price_other_ccy['closeRate']
 
