@@ -12,6 +12,7 @@ from retry import retry
 import datapane as dp
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+import plotly.express as px
 
 
 # extract tasks
@@ -217,28 +218,66 @@ def visualize_data():
     fig2_title = f'USD/{currency.upper()} exchange rate'
     fig3_title = f'{symbol.upper()} price in {currency.upper()} and USD'
 
-    fig1 = go.Figure(data=[go.Candlestick(x=df_price_usd['date'],
-                                          open=df_price_usd['1. open'],
-                                          high=df_price_usd['2. high'],
-                                          low=df_price_usd['3. low'],
-                                          close=df_price_usd['4. close'])
-                           ])
-    fig1.update_layout(
+    fig1a = go.Figure(data=[go.Candlestick(x=df_price_usd['date'],
+                                           open=df_price_usd['1. open'],
+                                           high=df_price_usd['2. high'],
+                                           low=df_price_usd['3. low'],
+                                           close=df_price_usd['4. close'])
+                            ])
+    fig1a.update_layout(
         xaxis_rangeslider_visible=False,
         xaxis_title='Date',
         yaxis_title='Price'
     )
 
-    fig2 = go.Figure(data=[go.Candlestick(x=df_exchange_rate['date'],
-                                          open=df_exchange_rate['1. open'],
-                                          high=df_exchange_rate['2. high'],
-                                          low=df_exchange_rate['3. low'],
-                                          close=df_exchange_rate['4. close'])
-                           ])
-    fig2.update_layout(
+    fig1b = go.Figure(data=[go.Ohlc(x=df_price_usd['date'],
+                                    open=df_price_usd['1. open'],
+                                    high=df_price_usd['2. high'],
+                                    low=df_price_usd['3. low'],
+                                    close=df_price_usd['4. close'])
+                            ])
+    fig1b.update_layout(
+        xaxis_rangeslider_visible=False,
+        xaxis_title='Date',
+        yaxis_title='Price'
+    )
+
+    fig1c = px.line(df_price_usd, x='date', y='4. close')
+    fig1c.update_layout(
+        xaxis_rangeslider_visible=False,
+        xaxis_title='Date',
+        yaxis_title='Close price'
+    )
+
+    fig2a = go.Figure(data=[go.Candlestick(x=df_exchange_rate['date'],
+                                           open=df_exchange_rate['1. open'],
+                                           high=df_exchange_rate['2. high'],
+                                           low=df_exchange_rate['3. low'],
+                                           close=df_exchange_rate['4. close'])
+                            ])
+    fig2a.update_layout(
         xaxis_rangeslider_visible=False,
         xaxis_title='Date',
         yaxis_title='Exchange rate'
+    )
+
+    fig2b = go.Figure(data=[go.Ohlc(x=df_exchange_rate['date'],
+                                    open=df_exchange_rate['1. open'],
+                                    high=df_exchange_rate['2. high'],
+                                    low=df_exchange_rate['3. low'],
+                                    close=df_exchange_rate['4. close'])
+                            ])
+    fig2b.update_layout(
+        xaxis_rangeslider_visible=False,
+        xaxis_title='Date',
+        yaxis_title='Exchange rate'
+    )
+
+    fig2c = px.line(df_exchange_rate, x='date', y='4. close')
+    fig2c.update_layout(
+        xaxis_rangeslider_visible=False,
+        xaxis_title='Date',
+        yaxis_title='Close exchange rate'
     )
 
     fig3 = make_subplots(specs=[[{'secondary_y': True}]])
@@ -266,11 +305,27 @@ def visualize_data():
     report = dp.Report(
         dp.HTML(html_title),
         dp.Text(fig1_title),
-        dp.Plot(fig1),
+        dp.Select(
+            blocks=[
+                dp.Plot(fig1a, label='Candlestick chart'),
+                dp.Plot(fig1b, label='OHLC chart'),
+                dp.Plot(fig1c, label='Line chart')
+            ]),
         dp.Text(fig2_title),
-        dp.Plot(fig2),
+        dp.Select(
+            blocks=[
+                dp.Plot(fig2a, label='Candlestick chart'),
+                dp.Plot(fig2b, label='OHLC chart'),
+                dp.Plot(fig2c, label='Line chart')
+            ]),
         dp.Text(fig3_title),
-        dp.Plot(fig3)
+        dp.Plot(fig3),
+        dp.Select(
+            blocks=[
+                dp.DataTable(df_price_usd, label=f'{symbol.upper()} price in USD'),
+                dp.DataTable(df_exchange_rate, label=f'USD/{currency.upper()} exchange rate'),
+                dp.DataTable(df_price_other_ccy, label=f'{symbol.upper()} price comparison in both currencies')
+            ])
     )
 
     report.save('alphavantage-etl', open=True)
