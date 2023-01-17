@@ -12,7 +12,6 @@ from retry import retry
 import datapane as dp
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-import plotly.express as px
 
 
 # extract tasks
@@ -197,6 +196,20 @@ def visualize_data():
     df_price_other_ccy = pd.read_sql_query(f'SELECT * FROM public.prd_{symbol.lower()}_price_{currency.lower()} '
                                            f'ORDER BY date DESC', engine)
 
+    sma_1 = 20
+    sma_2 = 90
+
+    df_price_usd['SMA_1'] = df_price_usd['4. close'].rolling(sma_1).mean().shift(-sma_1)
+    df_price_usd['SMA_2'] = df_price_usd['4. close'].rolling(sma_2).mean().shift(-sma_2)
+
+    df_exchange_rate['SMA_1'] = df_exchange_rate['4. close'].rolling(sma_1).mean().shift(-sma_1)
+    df_exchange_rate['SMA_2'] = df_exchange_rate['4. close'].rolling(sma_2).mean().shift(-sma_2)
+
+    df_price_other_ccy['SMA_1'] = \
+        df_price_other_ccy[f'closePrice{currency.title()}'].rolling(sma_1).mean().shift(-sma_1)
+    df_price_other_ccy['SMA_2'] = \
+        df_price_other_ccy[f'closePrice{currency.title()}'].rolling(sma_2).mean().shift(-sma_2)
+
     html_title = f'''
         <html>
             <style type='text/css'>
@@ -218,11 +231,27 @@ def visualize_data():
     fig2_title = f'USD/{currency.upper()} exchange rate'
     fig3_title = f'{symbol.upper()} price in {currency.upper()} and USD'
 
+    color_1 = '#0080FF'
+    color_2 = '#FF8000'
+    color_3 = '#00FF00'
+    color_4 = '#0000FF'
+    color_5 = '#FF0000'
+    color_6 = '#007700'
+
     fig1a = go.Figure(data=[go.Candlestick(x=df_price_usd['date'],
                                            open=df_price_usd['1. open'],
                                            high=df_price_usd['2. high'],
                                            low=df_price_usd['3. low'],
-                                           close=df_price_usd['4. close'])
+                                           close=df_price_usd['4. close'],
+                                           name='Price'),
+                            go.Scatter(x=df_price_usd['date'],
+                                       y=df_price_usd['SMA_1'],
+                                       name=f'SMA {sma_1}',
+                                       line=dict(color=color_2, width=1)),
+                            go.Scatter(x=df_price_usd['date'],
+                                       y=df_price_usd['SMA_2'],
+                                       name=f'SMA {sma_2}',
+                                       line=dict(color=color_3, width=1)),
                             ])
     fig1a.update_layout(
         xaxis_rangeslider_visible=False,
@@ -234,7 +263,16 @@ def visualize_data():
                                     open=df_price_usd['1. open'],
                                     high=df_price_usd['2. high'],
                                     low=df_price_usd['3. low'],
-                                    close=df_price_usd['4. close'])
+                                    close=df_price_usd['4. close'],
+                                    name='Price'),
+                            go.Scatter(x=df_price_usd['date'],
+                                       y=df_price_usd['SMA_1'],
+                                       name=f'SMA {sma_1}',
+                                       line=dict(color=color_2, width=1)),
+                            go.Scatter(x=df_price_usd['date'],
+                                       y=df_price_usd['SMA_2'],
+                                       name=f'SMA {sma_2}',
+                                       line=dict(color=color_3, width=1)),
                             ])
     fig1b.update_layout(
         xaxis_rangeslider_visible=False,
@@ -242,9 +280,20 @@ def visualize_data():
         yaxis_title='Price'
     )
 
-    fig1c = px.line(df_price_usd, x='date', y='4. close')
+    fig1c = go.Figure(data=[go.Scatter(x=df_price_usd['date'],
+                                       y=df_price_usd['4. close'],
+                                       name='Price',
+                                       line=dict(color=color_1, width=2)),
+                            go.Scatter(x=df_price_usd['date'],
+                                       y=df_price_usd['SMA_1'],
+                                       name=f'SMA {sma_1}',
+                                       line=dict(color=color_2, width=1)),
+                            go.Scatter(x=df_price_usd['date'],
+                                       y=df_price_usd['SMA_2'],
+                                       name=f'SMA {sma_2}',
+                                       line=dict(color=color_3, width=1)),
+                            ])
     fig1c.update_layout(
-        xaxis_rangeslider_visible=False,
         xaxis_title='Date',
         yaxis_title='Close price'
     )
@@ -253,7 +302,16 @@ def visualize_data():
                                            open=df_exchange_rate['1. open'],
                                            high=df_exchange_rate['2. high'],
                                            low=df_exchange_rate['3. low'],
-                                           close=df_exchange_rate['4. close'])
+                                           close=df_exchange_rate['4. close'],
+                                           name='Price'),
+                            go.Scatter(x=df_exchange_rate['date'],
+                                       y=df_exchange_rate['SMA_1'],
+                                       name=f'SMA {sma_1}',
+                                       line=dict(color=color_2, width=1)),
+                            go.Scatter(x=df_exchange_rate['date'],
+                                       y=df_exchange_rate['SMA_2'],
+                                       name=f'SMA {sma_2}',
+                                       line=dict(color='green', width=1)),
                             ])
     fig2a.update_layout(
         xaxis_rangeslider_visible=False,
@@ -265,7 +323,16 @@ def visualize_data():
                                     open=df_exchange_rate['1. open'],
                                     high=df_exchange_rate['2. high'],
                                     low=df_exchange_rate['3. low'],
-                                    close=df_exchange_rate['4. close'])
+                                    close=df_exchange_rate['4. close'],
+                                    name='Price'),
+                            go.Scatter(x=df_exchange_rate['date'],
+                                       y=df_exchange_rate['SMA_1'],
+                                       name=f'SMA {sma_1}',
+                                       line=dict(color=color_2, width=1)),
+                            go.Scatter(x=df_exchange_rate['date'],
+                                       y=df_exchange_rate['SMA_2'],
+                                       name=f'SMA {sma_2}',
+                                       line=dict(color=color_3, width=1)),
                             ])
     fig2b.update_layout(
         xaxis_rangeslider_visible=False,
@@ -273,9 +340,20 @@ def visualize_data():
         yaxis_title='Exchange rate'
     )
 
-    fig2c = px.line(df_exchange_rate, x='date', y='4. close')
+    fig2c = go.Figure(data=[go.Scatter(x=df_exchange_rate['date'],
+                                       y=df_exchange_rate['4. close'],
+                                       name='Price',
+                                       line=dict(color=color_1, width=2)),
+                            go.Scatter(x=df_exchange_rate['date'],
+                                       y=df_exchange_rate['SMA_1'],
+                                       name=f'SMA {sma_1}',
+                                       line=dict(color=color_2, width=1)),
+                            go.Scatter(x=df_exchange_rate['date'],
+                                       y=df_exchange_rate['SMA_2'],
+                                       name=f'SMA {sma_2}',
+                                       line=dict(color=color_3, width=1)),
+                            ])
     fig2c.update_layout(
-        xaxis_rangeslider_visible=False,
         xaxis_title='Date',
         yaxis_title='Close exchange rate'
     )
@@ -284,16 +362,55 @@ def visualize_data():
 
     fig3.add_trace(
         go.Scatter(
-            x=df_price_other_ccy['date'], y=df_price_other_ccy[f'closePrice{currency.title()}'],
-            name=f'Close price in {currency.upper()}'
+            x=df_price_other_ccy['date'],
+            y=df_price_other_ccy[f'closePrice{currency.title()}'],
+            name=f'Close price in {currency.upper()}',
+            line=dict(color=color_1, width=2)
         ),
         secondary_y=False,
     )
-
     fig3.add_trace(
         go.Scatter(
-            x=df_price_other_ccy['date'], y=df_price_other_ccy['closePriceUsd'],
-            name='Close price in USD'
+            x=df_price_other_ccy['date'],
+            y=df_price_other_ccy['SMA_1'],
+            name=f'SMA {sma_1} of close price in {currency.upper()}',
+            line=dict(color=color_2, width=1)
+        ),
+        secondary_y=False,
+    )
+    fig3.add_trace(
+        go.Scatter(
+            x=df_price_other_ccy['date'],
+            y=df_price_other_ccy['SMA_2'],
+            name=f'SMA {sma_2} of close price in {currency.upper()}',
+            line=dict(color=color_3, width=1)
+        ),
+        secondary_y=False,
+    )
+    fig3.add_trace(
+        go.Scatter(
+            x=df_price_other_ccy['date'],
+            y=df_price_other_ccy['closePriceUsd'],
+            name='Close price in USD',
+            line=dict(color=color_4, width=2)
+        ),
+        secondary_y=True,
+    )
+    fig3.add_trace(
+        go.Scatter(
+            x=df_price_other_ccy['date'],
+            y=df_price_usd['SMA_1'],
+            name=f'SMA {sma_1} of close price in USD',
+            line=dict(color=color_5, width=1)
+        ),
+        secondary_y=True,
+    )
+    fig3.add_trace(
+        go.Scatter(
+            x=df_price_other_ccy['date'],
+            y=df_price_usd['SMA_2'],
+            name=f'SMA {sma_2} of close price in USD',
+            line=dict(color=color_6, width=1)
         ),
         secondary_y=True,
     )
@@ -322,9 +439,10 @@ def visualize_data():
         dp.Plot(fig3),
         dp.Select(
             blocks=[
-                dp.DataTable(df_price_usd, label=f'{symbol.upper()} price in USD'),
-                dp.DataTable(df_exchange_rate, label=f'USD/{currency.upper()} exchange rate'),
-                dp.DataTable(df_price_other_ccy, label=f'{symbol.upper()} price comparison in both currencies')
+                dp.DataTable(df_price_usd.iloc[:, 0:5], label=f'{symbol.upper()} price in USD'),
+                dp.DataTable(df_exchange_rate.iloc[:, 0:5], label=f'USD/{currency.upper()} exchange rate'),
+                dp.DataTable(df_price_other_ccy.iloc[:, 0:4],
+                             label=f'{symbol.upper()} price comparison in both currencies')
             ])
     )
 
