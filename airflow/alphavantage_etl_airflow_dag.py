@@ -196,6 +196,7 @@ def visualize_data():
     df_price_other_ccy = pd.read_sql_query(f'SELECT * FROM public.prd_{symbol.lower()}_price_{currency.lower()} '
                                            f'ORDER BY date DESC', engine)
 
+    # the number of days over which the average is calculated
     sma_1 = 20
     sma_2 = 90
 
@@ -238,6 +239,7 @@ def visualize_data():
     color_5 = '#FF0000'
     color_6 = '#007700'
 
+    # price charts in USD
     fig1a = go.Figure(data=[go.Candlestick(x=df_price_usd['date'],
                                            open=df_price_usd['1. open'],
                                            high=df_price_usd['2. high'],
@@ -298,6 +300,7 @@ def visualize_data():
         yaxis_title='Close price'
     )
 
+    # exchange rate charts
     fig2a = go.Figure(data=[go.Candlestick(x=df_exchange_rate['date'],
                                            open=df_exchange_rate['1. open'],
                                            high=df_exchange_rate['2. high'],
@@ -311,7 +314,7 @@ def visualize_data():
                             go.Scatter(x=df_exchange_rate['date'],
                                        y=df_exchange_rate['SMA_2'],
                                        name=f'SMA {sma_2}',
-                                       line=dict(color='green', width=1)),
+                                       line=dict(color=color_3, width=1)),
                             ])
     fig2a.update_layout(
         xaxis_rangeslider_visible=False,
@@ -358,6 +361,7 @@ def visualize_data():
         yaxis_title='Close exchange rate'
     )
 
+    # price comparison chart
     fig3 = make_subplots(specs=[[{'secondary_y': True}]])
 
     fig3.add_trace(
@@ -419,6 +423,7 @@ def visualize_data():
     fig3.update_yaxes(title_text=f'Close price in {currency.upper()}', secondary_y=False)
     fig3.update_yaxes(title_text='Close price in USD', secondary_y=True)
 
+    # datapane report
     report = dp.Report(
         dp.HTML(html_title),
         dp.Text(fig1_title),
