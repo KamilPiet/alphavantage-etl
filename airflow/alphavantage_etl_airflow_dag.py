@@ -22,7 +22,7 @@ def get_daily_price():
     engine = create_engine(f'postgresql://{conn.login}:{conn.password}@{conn.host}:{conn.port}/{conn.schema}')
     df_holidays = pd.read_sql_query(f'SELECT * FROM public.holidays', engine)
     # np array with dates from 01-01-2016 to 31-12-2024 when NYSE was or will be closed
-    holidays = df_holidays.to_numpy(dtype='datetime64').flatten()
+    holidays = df_holidays.to_numpy(dtype='datetime64[D]').flatten()
     try:
         df_recent = pd.read_sql_query(f'SELECT date FROM public.src_{symbol.lower()}_price_usd ORDER BY date DESC '
                                       f'LIMIT 1', engine)
@@ -30,7 +30,7 @@ def get_daily_price():
         # calculates business day difference between the last database record's date and yesterday's date taking into
         # account holidays when NYSE was closed
         date_diff = np.busday_count(recent, date.today(), holidays=holidays) - 1
-        print(f'{date_diff} business day(s) behind')
+        print(f'Table src_{symbol.lower()}_price_usd: {date_diff} business day(s) missing')
         if date_diff <= 0:
             print('No need to pull data')
             return
@@ -77,7 +77,7 @@ def get_daily_exchange_rate():
         recent = df_recent.iloc[0].iat[0].date()
         # calculates business day difference between the last database record's date and yesterday's date
         date_diff = np.busday_count(recent, date.today())
-        print(f'{date_diff - 1} business day(s) behind')
+        print(f'Table src_usd_{currency.lower()}: {date_diff - 1} business day(s) missing')
         if date_diff <= 1:
             print('No need to pull data')
             return
@@ -131,7 +131,7 @@ def calc_load_daily_price_other_ccy():
     engine = create_engine(f'postgresql://{conn.login}:{conn.password}@{conn.host}:{conn.port}/{conn.schema}')
     df_holidays = pd.read_sql_query(f'SELECT * FROM public.holidays', engine)
     # np array with dates from 01-01-2016 to 31-12-2024 when NYSE was or will be closed
-    holidays = df_holidays.to_numpy(dtype='datetime64').flatten()
+    holidays = df_holidays.to_numpy(dtype='datetime64[D]').flatten()
     try:
         df_recent = pd.read_sql_query(f'SELECT date FROM public.prd_{symbol.lower()}_price_{currency.lower()} '
                                       f'ORDER BY date DESC LIMIT 1', engine)
@@ -145,6 +145,7 @@ def calc_load_daily_price_other_ccy():
             print(f'Table prd_{symbol.lower()}_price_{currency.lower()} is up to date')
             return
         table_exists = True
+        print(f'Table prd_{symbol.lower()}_price_{currency.lower()} is not up to date')
         print(f'Pulling {nyse_date_diff} row(s) from src_{symbol.lower()}_price_usd')
         print(f'Pulling {forex_date_diff} row(s) from src_usd_{currency.lower()}')
     except Exception as e:  # to catch all exceptions
@@ -187,7 +188,7 @@ def calc_load_daily_price_other_ccy():
 # data visualization task
 @task()
 def visualize_data():
-    os.system(f'datapane login --token={os.getenv("DATAPANE_TOKEN")}')
+    print('Preparing data for the report...')
     conn = BaseHook.get_connection('postgres_alphavantage')
     engine = create_engine(f'postgresql://{conn.login}:{conn.password}@{conn.host}:{conn.port}/{conn.schema}')
     df_price_usd = pd.read_sql_query(f'SELECT date, "1. open", "2. high", "3. low", "4. close" '
@@ -423,7 +424,11 @@ def visualize_data():
     fig3.update_yaxes(title_text=f'Close price in {currency.upper()}', secondary_y=False)
     fig3.update_yaxes(title_text='Close price in USD', secondary_y=True)
 
+    print('Logging in to Datapane...')
+    os.system(f'datapane login --token={os.getenv("DATAPANE_TOKEN")}')
+
     # datapane report
+    print('Creating the report...')
     report = dp.Report(
         dp.HTML(html_title),
         dp.Text(fig1_title),
@@ -455,8 +460,8 @@ def visualize_data():
     report.upload(name='alphavantage-etl')
 
 
-# this DAG will be triggered at midnight after every business day
-with DAG(dag_id="alphavantage_etl_dag", schedule_interval="0 0 * * 2-6", start_date=datetime(2022, 12, 1),
+# this DAG will be triggered at 00:05 after every business day
+with DAG(dag_id="alphavantage_etl_dag", schedule_interval="5 0 * * 2-6", start_date=datetime(2022, 12, 1),
          catchup=False, tags=["alphavantage"]) as dag:
 
     symbol = "SPY"
