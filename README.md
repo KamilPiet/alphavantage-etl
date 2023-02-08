@@ -58,7 +58,7 @@ PRIMARY KEY (date)
 ```
 - Import the data from `holidays.csv` to the table `holidays`
 - Move `alphavantage_etl_airflow_dag.py` into `<airflow_home_catalog>/dags`
-- Unpause the created DAG (`alphavantage_etl_dag`) in the Airflow web UI (default URL: `http://localhost:8080/dags/`)
+- Unpause the created DAG (`alphavantage_etl_dag`) in the Airflow web UI (default URL: `http://localhost:8080/home`)
 
 ### AWS Lambda
 
