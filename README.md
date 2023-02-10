@@ -57,7 +57,8 @@ PRIMARY KEY (date)
 );
 ```
 - Import the data from `holidays.csv` to the table `holidays`
-- Move `alphavantage_etl_airflow_dag.py` into `<airflow_home_catalog>/dags`
+- Move `av_etl.py` into `<airflow_home_directory>/plugins`
+- Move `alphavantage_etl_airflow_dag.py` into `<airflow_home_directory>/dags`
 - Unpause the created DAG (`alphavantage_etl_dag`) in the Airflow web UI (default URL: `http://localhost:8080/home`)
 
 ### AWS Lambda
@@ -72,7 +73,7 @@ PRIMARY KEY (date)
 - Clone this repository and build a Docker container image:  
 ```
 git clone https://github.com/KamilPiet/alphavantage-etl.git
-docker build -t <image_name> ./alphavantage-etl/aws-lambda
+docker build -t <image_name> -f ./alphavantage-etl/aws-lambda/Dockerfile ./alphavantage-etl
 ```
 - Push the image to the AWS Elastic Container Registry (follow steps 2-4 from
 [_this_](https://docs.aws.amazon.com/AmazonECR/latest/userguide/getting-started-cli.html#cli-authenticate-registry)
@@ -83,6 +84,7 @@ please note that the name of the repository must match the name of the built ima
   - Select `Container image` option
   - Click `Browse images`
   - Select the appropriate ECR repository and image
+  - Click `Create function`
 - Create following environment variables in the Labmda function configuration tab:  
   - `ALPHAVANTAGE_API_KEY` - your Alpha Vantage API key (it can be obtained 
 [_here_](https://www.alphavantage.co/support/#api-key))
@@ -108,9 +110,9 @@ PRIMARY KEY (date)
 ### General information
 
 - You can select a different stock/ETF and a different currency to be presented in the price report  
-by changing the values of the global variables `SYMBOL` and `CURRENCY` in `alphavantage_etl_airflow.py`   
-or `app.py` (before building the docker image)   
-  ([_here_](https://www.alphavantage.co/query?function=LISTING_STATUS&apikey=demo)
+by changing the values of the global variables `SYMBOL` and `CURRENCY` in `av_etl.py`  
+(if the pipeline is to run on AWS Lambda, the change must be made before building the docker image)  
+([_here_](https://www.alphavantage.co/query?function=LISTING_STATUS&apikey=demo)
 is a list of all stocks and ETFs available)
 
 
@@ -126,4 +128,4 @@ is a list of all stocks and ETFs available)
 
 - [_Here_](https://docs.aws.amazon.com/lambda/latest/dg/lambda-invocation.html)
 is a guide on how to invoke a Lambda function
-- Alternatively, you can invoke the function by running a test
+- The simplest method to invoke a function is to run a test
