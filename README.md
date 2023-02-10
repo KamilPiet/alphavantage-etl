@@ -58,7 +58,7 @@ PRIMARY KEY (date)
 ```
 - Import the data from `holidays.csv` to the table `holidays`
 - Move `av_etl.py` into `<airflow_home_directory>/plugins`
-- Move `alphavantage_etl_airflow_dag.py` into `<airflow_home_directory>/dags`
+- Move `airflow/av_etl_dag.py` into `<airflow_home_directory>/dags`
 - Unpause the created DAG (`alphavantage_etl_dag`) in the Airflow web UI (default URL: `http://localhost:8080/home`)
 
 ### AWS Lambda
@@ -118,7 +118,7 @@ is a list of all stocks and ETFs available)
 
 ### Apache Airflow
 
-- The DAG will run as scheduled in `alphavantage_etl_airflow.py`  
+- The DAG will run as scheduled in `airflow/av_etl_dag.py`  
 (by default it will run at 00:05 after every business day)
 - You can change the schedule by changing the value of the `schedule_interval` parameter when creating the DAG object
 - Alternatively, you can trigger the DAG manually in the Airflow web UI  
