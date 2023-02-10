@@ -4,27 +4,27 @@ from airflow.models.dag import DAG
 from airflow.utils.task_group import TaskGroup
 from sqlalchemy import create_engine
 from datetime import datetime
-from retry import retry
 import av_etl
 
-SYMBOL = "SPY"
-CURRENCY = "PLN"
+
+def create_sql_engine():
+    conn = BaseHook.get_connection('postgres_alphavantage')
+    engine = create_engine(f'postgresql://{conn.login}:{conn.password}@{conn.host}:{conn.port}/{conn.schema}')
+    return engine
 
 
 # extract tasks
 # extract from alphavantage and load to local postgresql database daily price (in USD) of a given symbol
 @task()
 def get_daily_price():
-    conn = BaseHook.get_connection('postgres_alphavantage')
-    engine = create_engine(f'postgresql://{conn.login}:{conn.password}@{conn.host}:{conn.port}/{conn.schema}')
+    engine = create_sql_engine()
     av_etl.get_daily_price(engine)
 
 
 # extract from alphavantage and load to local postgresql database daily exchange rate between USD and given currency
 @task()
 def get_daily_exchange_rate():
-    conn = BaseHook.get_connection('postgres_alphavantage')
-    engine = create_engine(f'postgresql://{conn.login}:{conn.password}@{conn.host}:{conn.port}/{conn.schema}')
+    engine = create_sql_engine()
     av_etl.get_daily_exchange_rate(engine)
 
 
@@ -33,18 +33,15 @@ def get_daily_exchange_rate():
 # rate, then calculate the stock price in the choosen currency and add it to the created dataframe and then load
 # this dataframe into a database
 @task()
-@retry(Exception, tries=5, delay=1)
 def calc_load_daily_price_other_ccy():
-    conn = BaseHook.get_connection('postgres_alphavantage')
-    engine = create_engine(f'postgresql://{conn.login}:{conn.password}@{conn.host}:{conn.port}/{conn.schema}')
+    engine = create_sql_engine()
     av_etl.calc_load_daily_price_other_ccy(engine)
 
 
 # data visualization task
 @task()
 def visualize_data():
-    conn = BaseHook.get_connection('postgres_alphavantage')
-    engine = create_engine(f'postgresql://{conn.login}:{conn.password}@{conn.host}:{conn.port}/{conn.schema}')
+    engine = create_sql_engine()
     av_etl.visualize_data(engine)
 
 
