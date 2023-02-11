@@ -12,11 +12,21 @@ SYMBOL = "SPY"
 CURRENCY = "PLN"
 
 
-def get_daily_price(engine):
+def get_holidays_np_array(engine):
     df_holidays = pd.read_sql_query(f'SELECT * FROM public.holidays', engine)
     # np array with dates from 01-01-2016 to 31-12-2024 when NYSE was or will be closed
     holidays = df_holidays.to_numpy(dtype='datetime64[D]').flatten()
+    return holidays
 
+
+def pull_data_from_api(url, params):
+    r = requests.get(url=url, params=params)
+    data = r.json()
+    return data
+
+
+def get_daily_price(engine):
+    holidays = get_holidays_np_array(engine)
     try:
         df_recent = pd.read_sql_query(f'SELECT date '
                                       f'FROM public.src_{SYMBOL.lower()}_price_usd '
@@ -49,8 +59,8 @@ def get_daily_price(engine):
               'symbol': SYMBOL,
               'outputsize': output_size,
               'apikey': str(os.getenv('ALPHAVANTAGE_API_KEY'))}
-    r = requests.get(url=url, params=params)
-    data = r.json()
+    data = pull_data_from_api(url, params)
+
     # convert time series to df then transpose df and reverse rows
     df_price_usd = pd.DataFrame(data["Time Series (Daily)"]).transpose().iloc[::-1]
 
@@ -104,8 +114,8 @@ def get_daily_exchange_rate(engine):
               'to_symbol': CURRENCY,
               'outputsize': output_size,
               'apikey': str(os.getenv('ALPHAVANTAGE_API_KEY'))}
-    r = requests.get(url=url, params=params)
-    data = r.json()
+    data = pull_data_from_api(url, params)
+    
     # convert time series to df, then transpose df and reverse rows
     df_exchange_rate = pd.DataFrame(data["Time Series FX (Daily)"]).transpose().iloc[::-1]
 
@@ -135,10 +145,7 @@ def get_daily_exchange_rate(engine):
 
 @retry(Exception, tries=5, delay=1)
 def calc_load_daily_price_other_ccy(engine):
-    df_holidays = pd.read_sql_query(f'SELECT * FROM public.holidays', engine)
-    # np array with dates from 01-01-2016 to 31-12-2024 when NYSE was or will be closed
-    holidays = df_holidays.to_numpy(dtype='datetime64[D]').flatten()
-
+    holidays = get_holidays_np_array(engine)
     try:
         df_recent = pd.read_sql_query(f'SELECT date '
                                       f'FROM public.prd_{SYMBOL.lower()}_price_{CURRENCY.lower()} '
