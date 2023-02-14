@@ -12,9 +12,9 @@ from sqlalchemy import inspect
 SYMBOL = "SPY"
 CURRENCY = "PLN"
 
-TABLE_SECURITY = f'src_{SYMBOL.lower()}_price_usd'
-TABLE_CURRENCY = f'src_usd_{CURRENCY.lower()}'
-TABLE_COMPARE = f'prd_{SYMBOL.lower()}_price_{CURRENCY.lower()}'
+SECURITY_TABLE = f'src_{SYMBOL.lower()}_price_usd'
+CURRENCY_TABLE = f'src_usd_{CURRENCY.lower()}'
+COMPARISON_TABLE = f'prd_{SYMBOL.lower()}_price_{CURRENCY.lower()}'
 
 
 def get_recent_row_date(engine, table_name):
@@ -54,15 +54,15 @@ def load_data_to_db(engine, df, table_name, table_exists):
 
 
 def get_daily_price(engine):
-    if inspect(engine).has_table(TABLE_SECURITY):
+    if inspect(engine).has_table(SECURITY_TABLE):
         table_exists = True
 
-        recent = get_recent_row_date(engine, TABLE_SECURITY)
+        recent = get_recent_row_date(engine, SECURITY_TABLE)
         holidays = get_holidays_np_array(engine)
         # calculates business day difference between the last database record's date and yesterday's date taking into
         # account holidays when NYSE was closed
         date_diff = np.busday_count(recent, date.today(), holidays=holidays) - 1
-        print(f'Table {TABLE_SECURITY}: {date_diff} business day(s) missing')
+        print(f'Table {SECURITY_TABLE}: {date_diff} business day(s) missing')
 
         if date_diff <= 0:
             print('No need to pull data')
@@ -94,18 +94,18 @@ def get_daily_price(engine):
         df_price_usd[col] = pd.to_numeric(df_price_usd[col])
     df_price_usd.index = pd.to_datetime(df_price_usd.index).date
 
-    load_data_to_db(engine, df_price_usd, TABLE_SECURITY, table_exists)
+    load_data_to_db(engine, df_price_usd, SECURITY_TABLE, table_exists)
 
 
 def get_daily_exchange_rate(engine):
-    if inspect(engine).has_table(TABLE_CURRENCY):
+    if inspect(engine).has_table(CURRENCY_TABLE):
         table_exists = True
 
-        recent = get_recent_row_date(engine, TABLE_CURRENCY)
+        recent = get_recent_row_date(engine, CURRENCY_TABLE)
         # calculates business day difference between the last database record's date and yesterday's date taking into
         # account holidays when NYSE was closed
         date_diff = np.busday_count(recent, date.today())
-        print(f'Table {TABLE_CURRENCY}: {date_diff - 1} business day(s) missing')
+        print(f'Table {CURRENCY_TABLE}: {date_diff - 1} business day(s) missing')
 
         if date_diff <= 1:
             print('No need to pull data')
@@ -145,15 +145,15 @@ def get_daily_exchange_rate(engine):
         df_exchange_rate[col] = pd.to_numeric(df_exchange_rate[col])
     df_exchange_rate.index = pd.to_datetime(df_exchange_rate.index).date
 
-    load_data_to_db(engine, df_exchange_rate, TABLE_CURRENCY, table_exists)
+    load_data_to_db(engine, df_exchange_rate, CURRENCY_TABLE, table_exists)
 
 
 @retry(Exception, tries=5, delay=1)
 def calc_load_daily_price_other_ccy(engine):
-    if inspect(engine).has_table(TABLE_COMPARE):
+    if inspect(engine).has_table(COMPARISON_TABLE):
         table_exists = True
 
-        recent = get_recent_row_date(engine, TABLE_COMPARE)
+        recent = get_recent_row_date(engine, COMPARISON_TABLE)
         holidays = get_holidays_np_array(engine)
         # calculates business day difference between the last database record's date and yesterday's date taking into
         # account holidays when NYSE was closed
@@ -162,21 +162,21 @@ def calc_load_daily_price_other_ccy(engine):
         forex_date_diff = np.busday_count(recent, date.today()) - 1
 
         if nyse_date_diff == 0:
-            print(f'Table {TABLE_COMPARE} is up to date')
+            print(f'Table {COMPARISON_TABLE} is up to date')
             return
 
-        print(f'Table {TABLE_COMPARE} is not up to date')
-        print(f'Pulling {nyse_date_diff} row(s) from {TABLE_SECURITY}')
-        print(f'Pulling {forex_date_diff} row(s) from {TABLE_CURRENCY}')
+        print(f'Table {COMPARISON_TABLE} is not up to date')
+        print(f'Pulling {nyse_date_diff} row(s) from {SECURITY_TABLE}')
+        print(f'Pulling {forex_date_diff} row(s) from {CURRENCY_TABLE}')
 
         df_price_usd = pd.read_sql_query(f'SELECT date, "4. close" '
-                                         f'FROM public.{TABLE_SECURITY} '
+                                         f'FROM public.{SECURITY_TABLE} '
                                          f'ORDER BY date DESC '
                                          f'LIMIT {nyse_date_diff}',
                                          engine,
                                          index_col="date")
         df_exchange_rate = pd.read_sql_query(f'SELECT date, "4. close" '
-                                             f'FROM public.{TABLE_CURRENCY} '
+                                             f'FROM public.{CURRENCY_TABLE} '
                                              f'ORDER BY date DESC '
                                              f'LIMIT {forex_date_diff}',
                                              engine,
@@ -184,14 +184,14 @@ def calc_load_daily_price_other_ccy(engine):
 
     else:
         table_exists = False
-        print(f'Pulling all rows from {TABLE_SECURITY} and {TABLE_CURRENCY}')
+        print(f'Pulling all rows from {SECURITY_TABLE} and {CURRENCY_TABLE}')
 
         df_price_usd = pd.read_sql_query(f'SELECT date, "4. close" '
-                                         f'FROM public.{TABLE_SECURITY} ',
+                                         f'FROM public.{SECURITY_TABLE} ',
                                          engine,
                                          index_col="date")
         df_exchange_rate = pd.read_sql_query(f'SELECT date, "4. close" '
-                                             f'FROM public.{TABLE_CURRENCY}',
+                                             f'FROM public.{CURRENCY_TABLE}',
                                              engine,
                                              index_col="date")
 
@@ -205,22 +205,22 @@ def calc_load_daily_price_other_ccy(engine):
 
     df_price_other_ccy[f'closePrice{CURRENCY.title()}'] = round(df_price_other_ccy[f'closePrice{CURRENCY.title()}'], 2)
 
-    load_data_to_db(engine, df_price_other_ccy, TABLE_COMPARE, table_exists)
+    load_data_to_db(engine, df_price_other_ccy, COMPARISON_TABLE, table_exists)
 
 
 def visualize_data(engine):
     print('Preparing data for the report...')
     
     df_price_usd = pd.read_sql_query(f'SELECT date, "1. open", "2. high", "3. low", "4. close" '
-                                     f'FROM public.{TABLE_SECURITY} '
+                                     f'FROM public.{SECURITY_TABLE} '
                                      f'ORDER BY date DESC',
                                      engine)
     df_exchange_rate = pd.read_sql_query(f'SELECT * '
-                                         f'FROM public.{TABLE_CURRENCY} '
+                                         f'FROM public.{CURRENCY_TABLE} '
                                          f'ORDER BY date DESC',
                                          engine)
     df_price_other_ccy = pd.read_sql_query(f'SELECT * '
-                                           f'FROM public.{TABLE_COMPARE} '
+                                           f'FROM public.{COMPARISON_TABLE} '
                                            f'ORDER BY date DESC',
                                            engine)
 
