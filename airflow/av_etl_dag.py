@@ -3,7 +3,7 @@ from airflow.hooks.base import BaseHook
 from airflow.models.dag import DAG
 from airflow.utils.task_group import TaskGroup
 from sqlalchemy import create_engine
-from datetime import datetime
+from datetime import datetime, timezone
 import av_etl
 
 
@@ -45,13 +45,17 @@ def visualize_data():
     av_etl.visualize_data(engine)
 
 
-# this DAG will be triggered at 00:05 after every business day
-with DAG(dag_id="alphavantage_etl_dag", schedule_interval="5 0 * * 2-6", start_date=datetime(2022, 12, 1),
-         catchup=False, tags=["alphavantage"]) as dag:
+# this DAG will be triggered at 00:05 UTC after every business day
+with DAG(dag_id="alphavantage_etl_dag",
+         schedule_interval="5 0 * * 2-6",
+         start_date=datetime(2022, 12, 1, tzinfo=timezone.utc),
+         catchup=False,
+         tags=["alphavantage"]) as dag:
 
     # extract
-    with TaskGroup("extract_load_src", tooltip="Extract and load symbol price in USD and currency exchange rate") \
-            as extract_load_src:
+    with TaskGroup("extract_load_src",
+                   tooltip="Extract and load the security price in USD and the currency exchange rate") \
+                   as extract_load_src:
         src_daily_price = get_daily_price()
         src_daily_exchange_rate = get_daily_exchange_rate()
         # order

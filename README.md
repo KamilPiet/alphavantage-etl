@@ -119,7 +119,7 @@ is a list of all stocks and ETFs available)
 ### Apache Airflow
 
 - The DAG will run as scheduled in `airflow/av_etl_dag.py`  
-(by default it will run at 00:05 after every business day)
+(by default it will run at 00:05 UTC after every business day)
 - You can change the schedule by changing the value of the `schedule_interval` parameter when creating the DAG object
 - Alternatively, you can trigger the DAG manually in the Airflow web UI  
 (default URL: `http://localhost:8080/dags/alphavantage_etl_dag`)
