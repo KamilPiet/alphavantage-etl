@@ -23,7 +23,7 @@ def get_recent_row_date(engine, table_name):
                                   f'ORDER BY date DESC '
                                   f'LIMIT 1',
                                   engine)
-    recent = df_recent.iloc[0].iat[0].date()
+    recent = df_recent.iloc[0].iat[0]
     return recent
 
 
@@ -92,7 +92,7 @@ def get_daily_price(engine):
         df_price_usd = df_price_usd.tail(date_diff)  # keep only those rows, that are missing from the database
     for col in df_price_usd:
         df_price_usd[col] = pd.to_numeric(df_price_usd[col])
-    df_price_usd.index = pd.to_datetime(df_price_usd.index)
+    df_price_usd.index = pd.to_datetime(df_price_usd.index).date
 
     load_data_to_db(engine, df_price_usd, TABLE_SECURITY, table_exists)
 
@@ -143,7 +143,7 @@ def get_daily_exchange_rate(engine):
 
     for col in df_exchange_rate:
         df_exchange_rate[col] = pd.to_numeric(df_exchange_rate[col])
-    df_exchange_rate.index = pd.to_datetime(df_exchange_rate.index)
+    df_exchange_rate.index = pd.to_datetime(df_exchange_rate.index).date
 
     load_data_to_db(engine, df_exchange_rate, TABLE_CURRENCY, table_exists)
 
