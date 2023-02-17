@@ -5,6 +5,7 @@ from airflow.utils.task_group import TaskGroup
 from sqlalchemy import create_engine
 from datetime import datetime, timezone
 import av_etl
+import data_viz
 
 
 def create_sql_engine():
@@ -42,7 +43,7 @@ def calc_load_daily_price_other_ccy():
 @task()
 def visualize_data():
     engine = create_sql_engine()
-    av_etl.visualize_data(engine)
+    data_viz.visualize_data(engine)
 
 
 # this DAG will be triggered at 00:05 UTC after every business day

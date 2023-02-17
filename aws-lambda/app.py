@@ -1,8 +1,9 @@
 import os
 from sqlalchemy import create_engine
+import av_etl
 
 os.environ['XDG_CONFIG_HOME'] = '/tmp'
-import av_etl
+import data_viz
 
 
 def create_sql_engine():
@@ -20,4 +21,4 @@ def handler(event, context):
     av_etl.get_daily_price(engine)
     av_etl.get_daily_exchange_rate(engine)
     av_etl.calc_load_daily_price_other_ccy(engine)
-    av_etl.visualize_data(engine)
+    data_viz.visualize_data(engine)

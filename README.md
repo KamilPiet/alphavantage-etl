@@ -57,7 +57,7 @@ PRIMARY KEY (date)
 );
 ```
 - Import the data from `holidays.csv` to the table `holidays`
-- Move `av_etl.py` into `<airflow_home_directory>/plugins`
+- Move `av_etl.py`, `constants.py` and `data_viz.py` into `<airflow_home_directory>/plugins`
 - Move `airflow/av_etl_dag.py` into `<airflow_home_directory>/dags`
 - Unpause the created DAG (`alphavantage_etl_dag`) in the Airflow web UI (default URL: `http://localhost:8080/home`)
 
@@ -110,7 +110,7 @@ PRIMARY KEY (date)
 ### General information
 
 - You can select a different stock/ETF and a different currency to be presented in the price report  
-by changing the values of the global variables `SYMBOL` and `CURRENCY` in `av_etl.py`  
+by changing the values of the global variables `SYMBOL` and `CURRENCY` in `constants.py`  
 (if the pipeline is to run on AWS Lambda, the change must be made before building the docker image)  
 ([_here_](https://www.alphavantage.co/query?function=LISTING_STATUS&apikey=demo)
 is a list of all stocks and ETFs available)
