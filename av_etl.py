@@ -12,9 +12,16 @@ from sqlalchemy import inspect
 SYMBOL = "SPY"
 CURRENCY = "PLN"
 
+# names of the database tables
 SECURITY_TABLE = f'src_{SYMBOL.lower()}_price_usd'
 CURRENCY_TABLE = f'src_usd_{CURRENCY.lower()}'
 COMPARISON_TABLE = f'prd_{SYMBOL.lower()}_price_{CURRENCY.lower()}'
+
+# a tuple of colors used in the price report
+COLORS = ('#0080FF', '#FF8000', '#00FF00', '#0000FF', '#FF0000', '#007700')
+
+# a tuple of window sizes of simple moving averages used in the price report
+SMA = (20, 90)
 
 
 def get_recent_row_date(engine, table_name):
@@ -208,6 +215,90 @@ def calc_load_daily_price_other_ccy(engine):
     load_data_to_db(engine, df_price_other_ccy, COMPARISON_TABLE, table_exists)
 
 
+def create_fig(df, fig_type):
+    if fig_type == 'Candlestick':
+        fig = go.Figure(data=[go.Candlestick(x=df['date'],
+                                             open=df['1. open'],
+                                             high=df['2. high'],
+                                             low=df['3. low'],
+                                             close=df['4. close'],
+                                             name='Price'),
+                              go.Scatter(x=df['date'],
+                                         y=df['SMA_1'],
+                                         name=f'SMA {SMA[0]}',
+                                         line=dict(color=COLORS[1], width=1)),
+                              go.Scatter(x=df['date'],
+                                         y=df['SMA_2'],
+                                         name=f'SMA {SMA[1]}',
+                                         line=dict(color=COLORS[2], width=1)),
+                              ])
+    elif fig_type == 'Ohlc':
+        fig = go.Figure(data=[go.Ohlc(x=df['date'],
+                                      open=df['1. open'],
+                                      high=df['2. high'],
+                                      low=df['3. low'],
+                                      close=df['4. close'],
+                                      name='Price'),
+                              go.Scatter(x=df['date'],
+                                         y=df['SMA_1'],
+                                         name=f'SMA {SMA[0]}',
+                                         line=dict(color=COLORS[1], width=1)),
+                              go.Scatter(x=df['date'],
+                                         y=df['SMA_2'],
+                                         name=f'SMA {SMA[1]}',
+                                         line=dict(color=COLORS[2], width=1)),
+                              ])
+    else:
+        fig = go.Figure(data=[go.Scatter(x=df['date'],
+                                         y=df['4. close'],
+                                         name='Price',
+                                         line=dict(color=COLORS[0], width=2)),
+                              go.Scatter(x=df['date'],
+                                         y=df['SMA_1'],
+                                         name=f'SMA {SMA[0]}',
+                                         line=dict(color=COLORS[1], width=1)),
+                              go.Scatter(x=df['date'],
+                                         y=df['SMA_2'],
+                                         name=f'SMA {SMA[1]}',
+                                         line=dict(color=COLORS[2], width=1)),
+                              ])
+
+    fig.update_layout(
+        xaxis_rangeslider_visible=False,
+        xaxis_title='Date',
+        yaxis_title='Price'
+    )
+
+    return fig
+
+
+def add_subplots(fig, df, columns, subplot_names, first_subplot_number, secondary_y):
+    if len(columns) == len(subplot_names):
+        i = first_subplot_number
+        for col, name in zip(columns, subplot_names):
+            # to highlight the first subplot 
+            if i == first_subplot_number:
+                width = 2
+            else:
+                width = 1
+
+            fig.add_trace(
+                go.Scatter(
+                    x=df['date'],
+                    y=df[col],
+                    name=name,
+                    line=dict(color=COLORS[i % len(COLORS)], width=width)
+                ),
+                secondary_y=secondary_y,
+            )
+            i = i + 1
+
+    else:
+        print("The number of subplot names doesn't match the number of columns")
+
+    return fig
+
+
 def visualize_data(engine):
     print('Preparing data for the report...')
     
@@ -224,20 +315,16 @@ def visualize_data(engine):
                                            f'ORDER BY date DESC',
                                            engine)
 
-    # the number of days over which the average is calculated
-    sma_1 = 20
-    sma_2 = 90
+    df_price_usd['SMA_1'] = df_price_usd['4. close'].rolling(SMA[0]).mean().shift(-SMA[0])
+    df_price_usd['SMA_2'] = df_price_usd['4. close'].rolling(SMA[1]).mean().shift(-SMA[1])
 
-    df_price_usd['SMA_1'] = df_price_usd['4. close'].rolling(sma_1).mean().shift(-sma_1)
-    df_price_usd['SMA_2'] = df_price_usd['4. close'].rolling(sma_2).mean().shift(-sma_2)
-
-    df_exchange_rate['SMA_1'] = df_exchange_rate['4. close'].rolling(sma_1).mean().shift(-sma_1)
-    df_exchange_rate['SMA_2'] = df_exchange_rate['4. close'].rolling(sma_2).mean().shift(-sma_2)
+    df_exchange_rate['SMA_1'] = df_exchange_rate['4. close'].rolling(SMA[0]).mean().shift(-SMA[0])
+    df_exchange_rate['SMA_2'] = df_exchange_rate['4. close'].rolling(SMA[1]).mean().shift(-SMA[1])
 
     df_price_other_ccy['SMA_1'] = \
-        df_price_other_ccy[f'closePrice{CURRENCY.title()}'].rolling(sma_1).mean().shift(-sma_1)
+        df_price_other_ccy[f'closePrice{CURRENCY.title()}'].rolling(SMA[0]).mean().shift(-SMA[0])
     df_price_other_ccy['SMA_2'] = \
-        df_price_other_ccy[f'closePrice{CURRENCY.title()}'].rolling(sma_2).mean().shift(-sma_2)
+        df_price_other_ccy[f'closePrice{CURRENCY.title()}'].rolling(SMA[1]).mean().shift(-SMA[1])
 
     html_title = f'''
             <html>
@@ -260,192 +347,42 @@ def visualize_data(engine):
     fig2_title = f'USD/{CURRENCY.upper()} exchange rate'
     fig3_title = f'{SYMBOL.upper()} price in {CURRENCY.upper()} and USD'
 
-    color_1 = '#0080FF'
-    color_2 = '#FF8000'
-    color_3 = '#00FF00'
-    color_4 = '#0000FF'
-    color_5 = '#FF0000'
-    color_6 = '#007700'
-
     # price charts in USD
-    fig1a = go.Figure(data=[go.Candlestick(x=df_price_usd['date'],
-                                           open=df_price_usd['1. open'],
-                                           high=df_price_usd['2. high'],
-                                           low=df_price_usd['3. low'],
-                                           close=df_price_usd['4. close'],
-                                           name='Price'),
-                            go.Scatter(x=df_price_usd['date'],
-                                       y=df_price_usd['SMA_1'],
-                                       name=f'SMA {sma_1}',
-                                       line=dict(color=color_2, width=1)),
-                            go.Scatter(x=df_price_usd['date'],
-                                       y=df_price_usd['SMA_2'],
-                                       name=f'SMA {sma_2}',
-                                       line=dict(color=color_3, width=1)),
-                            ])
-    fig1a.update_layout(
-        xaxis_rangeslider_visible=False,
-        xaxis_title='Date',
-        yaxis_title='Price'
-    )
-
-    fig1b = go.Figure(data=[go.Ohlc(x=df_price_usd['date'],
-                                    open=df_price_usd['1. open'],
-                                    high=df_price_usd['2. high'],
-                                    low=df_price_usd['3. low'],
-                                    close=df_price_usd['4. close'],
-                                    name='Price'),
-                            go.Scatter(x=df_price_usd['date'],
-                                       y=df_price_usd['SMA_1'],
-                                       name=f'SMA {sma_1}',
-                                       line=dict(color=color_2, width=1)),
-                            go.Scatter(x=df_price_usd['date'],
-                                       y=df_price_usd['SMA_2'],
-                                       name=f'SMA {sma_2}',
-                                       line=dict(color=color_3, width=1)),
-                            ])
-    fig1b.update_layout(
-        xaxis_rangeslider_visible=False,
-        xaxis_title='Date',
-        yaxis_title='Price'
-    )
-
-    fig1c = go.Figure(data=[go.Scatter(x=df_price_usd['date'],
-                                       y=df_price_usd['4. close'],
-                                       name='Price',
-                                       line=dict(color=color_1, width=2)),
-                            go.Scatter(x=df_price_usd['date'],
-                                       y=df_price_usd['SMA_1'],
-                                       name=f'SMA {sma_1}',
-                                       line=dict(color=color_2, width=1)),
-                            go.Scatter(x=df_price_usd['date'],
-                                       y=df_price_usd['SMA_2'],
-                                       name=f'SMA {sma_2}',
-                                       line=dict(color=color_3, width=1)),
-                            ])
-    fig1c.update_layout(
-        xaxis_title='Date',
-        yaxis_title='Close price'
-    )
+    fig1a = create_fig(df_price_usd, 'Candlestick')
+    fig1b = create_fig(df_price_usd, 'Ohlc')
+    fig1c = create_fig(df_price_usd, 'Line')
 
     # exchange rate charts
-    fig2a = go.Figure(data=[go.Candlestick(x=df_exchange_rate['date'],
-                                           open=df_exchange_rate['1. open'],
-                                           high=df_exchange_rate['2. high'],
-                                           low=df_exchange_rate['3. low'],
-                                           close=df_exchange_rate['4. close'],
-                                           name='Price'),
-                            go.Scatter(x=df_exchange_rate['date'],
-                                       y=df_exchange_rate['SMA_1'],
-                                       name=f'SMA {sma_1}',
-                                       line=dict(color=color_2, width=1)),
-                            go.Scatter(x=df_exchange_rate['date'],
-                                       y=df_exchange_rate['SMA_2'],
-                                       name=f'SMA {sma_2}',
-                                       line=dict(color=color_3, width=1)),
-                            ])
-    fig2a.update_layout(
-        xaxis_rangeslider_visible=False,
-        xaxis_title='Date',
-        yaxis_title='Exchange rate'
-    )
-
-    fig2b = go.Figure(data=[go.Ohlc(x=df_exchange_rate['date'],
-                                    open=df_exchange_rate['1. open'],
-                                    high=df_exchange_rate['2. high'],
-                                    low=df_exchange_rate['3. low'],
-                                    close=df_exchange_rate['4. close'],
-                                    name='Price'),
-                            go.Scatter(x=df_exchange_rate['date'],
-                                       y=df_exchange_rate['SMA_1'],
-                                       name=f'SMA {sma_1}',
-                                       line=dict(color=color_2, width=1)),
-                            go.Scatter(x=df_exchange_rate['date'],
-                                       y=df_exchange_rate['SMA_2'],
-                                       name=f'SMA {sma_2}',
-                                       line=dict(color=color_3, width=1)),
-                            ])
-    fig2b.update_layout(
-        xaxis_rangeslider_visible=False,
-        xaxis_title='Date',
-        yaxis_title='Exchange rate'
-    )
-
-    fig2c = go.Figure(data=[go.Scatter(x=df_exchange_rate['date'],
-                                       y=df_exchange_rate['4. close'],
-                                       name='Price',
-                                       line=dict(color=color_1, width=2)),
-                            go.Scatter(x=df_exchange_rate['date'],
-                                       y=df_exchange_rate['SMA_1'],
-                                       name=f'SMA {sma_1}',
-                                       line=dict(color=color_2, width=1)),
-                            go.Scatter(x=df_exchange_rate['date'],
-                                       y=df_exchange_rate['SMA_2'],
-                                       name=f'SMA {sma_2}',
-                                       line=dict(color=color_3, width=1)),
-                            ])
-    fig2c.update_layout(
-        xaxis_title='Date',
-        yaxis_title='Close exchange rate'
-    )
+    fig2a = create_fig(df_exchange_rate, 'Candlestick')
+    fig2b = create_fig(df_exchange_rate, 'Ohlc')
+    fig2c = create_fig(df_exchange_rate, 'Line')
 
     # price comparison chart
     fig3 = make_subplots(specs=[[{'secondary_y': True}]])
 
-    fig3.add_trace(
-        go.Scatter(
-            x=df_price_other_ccy['date'],
-            y=df_price_other_ccy[f'closePrice{CURRENCY.title()}'],
-            name=f'Close price in {CURRENCY.upper()}',
-            line=dict(color=color_1, width=2)
-        ),
-        secondary_y=False,
-    )
-    fig3.add_trace(
-        go.Scatter(
-            x=df_price_other_ccy['date'],
-            y=df_price_other_ccy['SMA_1'],
-            name=f'SMA {sma_1} of close price in {CURRENCY.upper()}',
-            line=dict(color=color_2, width=1)
-        ),
-        secondary_y=False,
-    )
-    fig3.add_trace(
-        go.Scatter(
-            x=df_price_other_ccy['date'],
-            y=df_price_other_ccy['SMA_2'],
-            name=f'SMA {sma_2} of close price in {CURRENCY.upper()}',
-            line=dict(color=color_3, width=1)
-        ),
-        secondary_y=False,
-    )
-    fig3.add_trace(
-        go.Scatter(
-            x=df_price_other_ccy['date'],
-            y=df_price_other_ccy['closePriceUsd'],
-            name='Close price in USD',
-            line=dict(color=color_4, width=2)
-        ),
-        secondary_y=True,
-    )
-    fig3.add_trace(
-        go.Scatter(
-            x=df_price_other_ccy['date'],
-            y=df_price_usd['SMA_1'],
-            name=f'SMA {sma_1} of close price in USD',
-            line=dict(color=color_5, width=1)
-        ),
-        secondary_y=True,
-    )
-    fig3.add_trace(
-        go.Scatter(
-            x=df_price_other_ccy['date'],
-            y=df_price_usd['SMA_2'],
-            name=f'SMA {sma_2} of close price in USD',
-            line=dict(color=color_6, width=1)
-        ),
-        secondary_y=True,
-    )
+    # a list of column names to be added to the plot
+    columns_price_other_ccy = (f'closePrice{CURRENCY.title()}',
+                               'SMA_1',
+                               'SMA_2')
+
+    # a list of plot names
+    subplot_names_price_other_ccy = (f'Close price in {CURRENCY.upper()}',
+                                     f'SMA {SMA[0]} of close price in {CURRENCY.upper()}',
+                                     f'SMA {SMA[1]} of close price in {CURRENCY.upper()}')
+
+    fig3 = add_subplots(fig3, df_price_other_ccy, columns_price_other_ccy, subplot_names_price_other_ccy, 0, False)
+
+    # a list of column names to be added to the plot
+    columns_price_usd = ('4. close',
+                         'SMA_1',
+                         'SMA_2')
+
+    # a list of plot names
+    subplot_names_price_usd = (f'Close price in USD',
+                               f'SMA {SMA[0]} of close price in USD',
+                               f'SMA {SMA[1]} of close price in USD')
+
+    fig3 = add_subplots(fig3, df_price_usd, columns_price_usd, subplot_names_price_usd, 3, True)
 
     fig3.update_xaxes(title_text='Date')
     fig3.update_yaxes(title_text=f'Close price in {CURRENCY.upper()}', secondary_y=False)
