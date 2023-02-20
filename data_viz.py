@@ -6,6 +6,35 @@ from plotly.subplots import make_subplots
 from constants import *
 
 
+class ComparisonFigure(go.Figure):
+    subplot_num = 0
+
+    def __init__(self):
+        super().__init__(make_subplots(specs=[[{'secondary_y': True}]]))
+
+    def add_subplots(self, df, subplot_names, secondary_y):
+        i = self.subplot_num
+        for col in subplot_names:
+            # to highlight the main subplot
+            if i == self.subplot_num:
+                width = 2
+            else:
+                width = 1
+
+            self.add_trace(
+                go.Scatter(
+                    x=df['date'],
+                    y=df[col],
+                    name=subplot_names[col],
+                    line=dict(color=COLORS[i % len(COLORS)], width=width)
+                ),
+                secondary_y=secondary_y,
+            )
+            i = i + 1
+
+        self.subplot_num = i
+
+
 def create_fig(df, fig_type):
     if fig_type == 'Candlestick':
         fig = go.Figure(data=go.Candlestick(x=df['date'],
@@ -41,33 +70,6 @@ def create_fig(df, fig_type):
         xaxis_title='Date',
         yaxis_title='Price'
     )
-
-    return fig
-
-
-def add_subplots(fig, df, columns, subplot_names, first_subplot_number, secondary_y):
-    if len(columns) == len(subplot_names):
-        i = first_subplot_number
-        for col, name in zip(columns, subplot_names):
-            # to highlight the first subplot
-            if i == first_subplot_number:
-                width = 2
-            else:
-                width = 1
-
-            fig.add_trace(
-                go.Scatter(
-                    x=df['date'],
-                    y=df[col],
-                    name=name,
-                    line=dict(color=COLORS[i % len(COLORS)], width=width)
-                ),
-                secondary_y=secondary_y,
-            )
-            i = i + 1
-
-    else:
-        print("The number of subplot names doesn't match the number of columns")
 
     return fig
 
@@ -131,31 +133,21 @@ def visualize_data(engine):
     fig2c = create_fig(df_exchange_rate, 'Line')
 
     # price comparison chart
-    fig3 = make_subplots(specs=[[{'secondary_y': True}]])
+    fig3 = ComparisonFigure()
 
-    # a list of column names to be added to the plot
-    columns_price_other_ccy = (f'closePrice{CURRENCY.title()}',
-                               'SMA_1',
-                               'SMA_2')
+    # a dictionary of subplot names to be added to the plot
+    subplot_names_price_other_ccy = {f'closePrice{CURRENCY.title()}': f'Close price in {CURRENCY.upper()}',
+                                     'SMA_1': f'SMA {SMA[0]} of close price in {CURRENCY.upper()}',
+                                     'SMA_2': f'SMA {SMA[1]} of close price in {CURRENCY.upper()}'}
 
-    # a list of plot names
-    subplot_names_price_other_ccy = (f'Close price in {CURRENCY.upper()}',
-                                     f'SMA {SMA[0]} of close price in {CURRENCY.upper()}',
-                                     f'SMA {SMA[1]} of close price in {CURRENCY.upper()}')
+    fig3.add_subplots(df_price_other_ccy, subplot_names_price_other_ccy, False)
 
-    fig3 = add_subplots(fig3, df_price_other_ccy, columns_price_other_ccy, subplot_names_price_other_ccy, 0, False)
+    # a dictionary of subplot names to be added to the plot
+    subplot_names_price_usd = {'4. close': f'Close price in USD',
+                               'SMA_1': f'SMA {SMA[0]} of close price in USD',
+                               'SMA_2': f'SMA {SMA[1]} of close price in USD'}
 
-    # a list of column names to be added to the plot
-    columns_price_usd = ('4. close',
-                         'SMA_1',
-                         'SMA_2')
-
-    # a list of plot names
-    subplot_names_price_usd = (f'Close price in USD',
-                               f'SMA {SMA[0]} of close price in USD',
-                               f'SMA {SMA[1]} of close price in USD')
-
-    fig3 = add_subplots(fig3, df_price_usd, columns_price_usd, subplot_names_price_usd, 3, True)
+    fig3.add_subplots(df_price_usd, subplot_names_price_usd, True)
 
     fig3.update_xaxes(title_text='Date')
     fig3.update_yaxes(title_text=f'Close price in {CURRENCY.upper()}', secondary_y=False)
