@@ -8,51 +8,33 @@ from constants import *
 
 def create_fig(df, fig_type):
     if fig_type == 'Candlestick':
-        fig = go.Figure(data=[go.Candlestick(x=df['date'],
-                                             open=df['1. open'],
-                                             high=df['2. high'],
-                                             low=df['3. low'],
-                                             close=df['4. close'],
-                                             name='Price'),
-                              go.Scatter(x=df['date'],
-                                         y=df['SMA_1'],
-                                         name=f'SMA {SMA[0]}',
-                                         line=dict(color=COLORS[1], width=1)),
-                              go.Scatter(x=df['date'],
-                                         y=df['SMA_2'],
-                                         name=f'SMA {SMA[1]}',
-                                         line=dict(color=COLORS[2], width=1)),
-                              ])
+        fig = go.Figure(data=go.Candlestick(x=df['date'],
+                                            open=df['1. open'],
+                                            high=df['2. high'],
+                                            low=df['3. low'],
+                                            close=df['4. close'],
+                                            name='Price'))
     elif fig_type == 'Ohlc':
-        fig = go.Figure(data=[go.Ohlc(x=df['date'],
-                                      open=df['1. open'],
-                                      high=df['2. high'],
-                                      low=df['3. low'],
-                                      close=df['4. close'],
-                                      name='Price'),
-                              go.Scatter(x=df['date'],
-                                         y=df['SMA_1'],
-                                         name=f'SMA {SMA[0]}',
-                                         line=dict(color=COLORS[1], width=1)),
-                              go.Scatter(x=df['date'],
-                                         y=df['SMA_2'],
-                                         name=f'SMA {SMA[1]}',
-                                         line=dict(color=COLORS[2], width=1)),
-                              ])
+        fig = go.Figure(data=go.Ohlc(x=df['date'],
+                                     open=df['1. open'],
+                                     high=df['2. high'],
+                                     low=df['3. low'],
+                                     close=df['4. close'],
+                                     name='Price'))
     else:
-        fig = go.Figure(data=[go.Scatter(x=df['date'],
-                                         y=df['4. close'],
-                                         name='Price',
-                                         line=dict(color=COLORS[0], width=2)),
-                              go.Scatter(x=df['date'],
-                                         y=df['SMA_1'],
-                                         name=f'SMA {SMA[0]}',
-                                         line=dict(color=COLORS[1], width=1)),
-                              go.Scatter(x=df['date'],
-                                         y=df['SMA_2'],
-                                         name=f'SMA {SMA[1]}',
-                                         line=dict(color=COLORS[2], width=1)),
-                              ])
+        fig = go.Figure(data=go.Scatter(x=df['date'],
+                                        y=df['4. close'],
+                                        name='Price',
+                                        line=dict(color=COLORS[0], width=2)))
+
+    fig.add_scatter(x=df['date'],
+                    y=df['SMA_1'],
+                    name=f'SMA {SMA[0]}',
+                    line=dict(color=COLORS[1], width=1))
+    fig.add_scatter(x=df['date'],
+                    y=df['SMA_2'],
+                    name=f'SMA {SMA[1]}',
+                    line=dict(color=COLORS[2], width=1))
 
     fig.update_layout(
         xaxis_rangeslider_visible=False,
