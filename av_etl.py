@@ -9,6 +9,7 @@ from constants import *
 
 
 def get_recent_row_date(engine, table_name):
+    """Get and then return the date from the most recent row in a given table."""
     df_recent = pd.read_sql_query(sql=text(f'SELECT date '
                                            f'FROM public.{table_name} '
                                            f'ORDER BY date DESC '
@@ -19,14 +20,15 @@ def get_recent_row_date(engine, table_name):
 
 
 def get_holidays_np_array(engine):
+    """Get and then return a numpy array with dates on which NYSE is closed."""
     df_holidays = pd.read_sql_query(sql=text(f'SELECT * FROM public.holidays'),
                                     con=engine.connect())
-    # np array with dates from 01-01-2016 to 31-12-2024 when NYSE was or will be closed
     holidays = df_holidays.to_numpy(dtype='datetime64[D]').flatten()
     return holidays
 
 
 def pull_data_from_api(params):
+    """Get and then return data from Alpha Vantage API with given parameters."""
     url = 'https://www.alphavantage.co/query'
     r = requests.get(url=url, params=params)
     data = r.json()
@@ -34,6 +36,7 @@ def pull_data_from_api(params):
 
 
 def load_data_to_db(engine, df, table_name, table_exists):
+    """Load provided data into a database."""
     df.to_sql(table_name,
               engine,
               if_exists='append',
@@ -46,6 +49,7 @@ def load_data_to_db(engine, df, table_name, table_exists):
 
 
 def get_daily_price(engine):
+    """Extract from Alpha Vantage API and then load into a database daily security price data in USD."""
     if inspect(engine).has_table(SECURITY_TABLE):
         table_exists = True
 
@@ -90,6 +94,7 @@ def get_daily_price(engine):
 
 
 def get_daily_exchange_rate(engine):
+    """Extract from AV API and then load into a database daily exchange rate data between USD and a given currency."""
     if inspect(engine).has_table(CURRENCY_TABLE):
         table_exists = True
 
@@ -124,7 +129,7 @@ def get_daily_exchange_rate(engine):
     # convert time series to df, then transpose df and reverse rows
     df_exchange_rate = pd.DataFrame(data["Time Series FX (Daily)"]).transpose().iloc[::-1]
 
-    if date.today().weekday() < 5:
+    if date.today().weekday() < 5:  # checks if today is any day between Monday and Friday
         if table_exists:
             # keep only those rows, that are missing from the database
             df_exchange_rate = df_exchange_rate.tail(date_diff)
@@ -142,6 +147,7 @@ def get_daily_exchange_rate(engine):
 
 @retry(Exception, tries=5, delay=1)
 def calc_load_daily_price_other_ccy(engine):
+    """Calculate and then load into a database daily security price data in a given currency."""
     if inspect(engine).has_table(COMPARISON_TABLE):
         table_exists = True
 

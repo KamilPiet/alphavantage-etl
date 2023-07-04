@@ -8,12 +8,15 @@ from sqlalchemy import text
 
 
 class ComparisonFigure(go.Figure):
+    """Figure to compare two or more subplots."""
+
     subplot_num = 0
 
     def __init__(self):
         super().__init__(make_subplots(specs=[[{'secondary_y': True}]]))
 
     def add_subplots(self, df, subplot_names, secondary_y):
+        """Help with adding multiple subplots at once."""
         i = self.subplot_num
         for col in subplot_names:
             # to highlight the main subplot
@@ -37,6 +40,7 @@ class ComparisonFigure(go.Figure):
 
 
 def create_fig(df, plot_type):
+    """Create and then return a plot of a given type togheter with two plots with simple moving averages."""
     if plot_type == 'Candlestick':
         fig = go.Figure(data=go.Candlestick(x=df['date'],
                                             open=df['1. open'],
@@ -76,6 +80,7 @@ def create_fig(df, plot_type):
 
 
 def visualize_data(engine):
+    """Pull the necessary data from the database, calculate SMAs, prepare a datapane report and then upload it."""
     print('Preparing data for the report...')
 
     df_price_usd = pd.read_sql_query(sql=text(f'SELECT date, "1. open", "2. high", "3. low", "4. close" '

@@ -7,6 +7,7 @@ import data_viz
 
 
 def create_sql_engine():
+    """Create and then return an SQL engine."""
     db_login = os.getenv('DB_LOGIN')
     db_password = os.getenv('DB_PASSWORD')
     db_host = os.getenv('DB_HOST')

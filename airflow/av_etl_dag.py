@@ -9,20 +9,19 @@ import data_viz
 
 
 def create_sql_engine():
+    """Create and then return an SQL engine."""
     conn = BaseHook.get_connection('postgres_alphavantage')
     engine = create_engine(f'postgresql://{conn.login}:{conn.password}@{conn.host}:{conn.port}/{conn.schema}')
     return engine
 
 
 # extract tasks
-# extract from alphavantage and load to local postgresql database daily price (in USD) of a given symbol
 @task()
 def get_daily_price():
     engine = create_sql_engine()
     av_etl.get_daily_price(engine)
 
 
-# extract from alphavantage and load to local postgresql database daily exchange rate between USD and given currency
 @task()
 def get_daily_exchange_rate():
     engine = create_sql_engine()
@@ -30,9 +29,6 @@ def get_daily_exchange_rate():
 
 
 # transform and load task
-# create a new dataframe consisting of close price (in USD) of a stock with a given symbol and close currency exchange
-# rate, then calculate the stock price in the choosen currency and add it to the created dataframe and then load
-# this dataframe into a database
 @task()
 def calc_load_daily_price_other_ccy():
     engine = create_sql_engine()
@@ -68,5 +64,5 @@ with DAG(dag_id="alphavantage_etl_dag",
     # visualize
     visualize = visualize_data()
 
-    # order
+    # define tasks/task groups order
     extract_load_src >> transform_load >> visualize

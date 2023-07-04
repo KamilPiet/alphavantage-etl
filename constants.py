@@ -1,7 +1,11 @@
+# A security of which the price will be presented in the report
 SYMBOL = "SPY"
+
+# A currency (besides USD) in which the price of the security, defined by the SYMBOL variable, will be calculated and
+# presented in the report
 CURRENCY = "PLN"
 
-# names of the database tables
+# names of database tables
 SECURITY_TABLE = f'src_{SYMBOL.lower()}_price_usd'
 CURRENCY_TABLE = f'src_usd_{CURRENCY.lower()}'
 COMPARISON_TABLE = f'prd_{SYMBOL.lower()}_price_{CURRENCY.lower()}'
