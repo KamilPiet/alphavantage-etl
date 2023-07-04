@@ -4,6 +4,7 @@ import datapane as dp
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from constants import *
+from sqlalchemy import text
 
 
 class ComparisonFigure(go.Figure):
@@ -77,18 +78,18 @@ def create_fig(df, fig_type):
 def visualize_data(engine):
     print('Preparing data for the report...')
 
-    df_price_usd = pd.read_sql_query(f'SELECT date, "1. open", "2. high", "3. low", "4. close" '
-                                     f'FROM public.{SECURITY_TABLE} '
-                                     f'ORDER BY date DESC',
-                                     engine)
-    df_exchange_rate = pd.read_sql_query(f'SELECT * '
-                                         f'FROM public.{CURRENCY_TABLE} '
-                                         f'ORDER BY date DESC',
-                                         engine)
-    df_price_other_ccy = pd.read_sql_query(f'SELECT * '
-                                           f'FROM public.{COMPARISON_TABLE} '
-                                           f'ORDER BY date DESC',
-                                           engine)
+    df_price_usd = pd.read_sql_query(sql=text(f'SELECT date, "1. open", "2. high", "3. low", "4. close" '
+                                              f'FROM public.{SECURITY_TABLE} '
+                                              f'ORDER BY date DESC'),
+                                     con=engine.connect())
+    df_exchange_rate = pd.read_sql_query(sql=text(f'SELECT * '
+                                                  f'FROM public.{CURRENCY_TABLE} '
+                                                  f'ORDER BY date DESC'),
+                                         con=engine.connect())
+    df_price_other_ccy = pd.read_sql_query(sql=text(f'SELECT * '
+                                                    f'FROM public.{COMPARISON_TABLE} '
+                                                    f'ORDER BY date DESC'),
+                                           con=engine.connect())
 
     df_price_usd['SMA_1'] = df_price_usd['4. close'].rolling(SMA[0]).mean().shift(-SMA[0])
     df_price_usd['SMA_2'] = df_price_usd['4. close'].rolling(SMA[1]).mean().shift(-SMA[1])
@@ -158,7 +159,7 @@ def visualize_data(engine):
 
     # datapane report
     print('Creating the report...')
-    report = dp.Report(
+    report = dp.App(
         dp.HTML(html_title),
         dp.Text(fig1_title),
         dp.Select(

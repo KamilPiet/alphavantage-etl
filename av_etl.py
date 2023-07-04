@@ -4,22 +4,23 @@ import pandas as pd
 from datetime import date
 import numpy as np
 from retry import retry
-from sqlalchemy import inspect
+from sqlalchemy import inspect, text
 from constants import *
 
 
 def get_recent_row_date(engine, table_name):
-    df_recent = pd.read_sql_query(f'SELECT date '
-                                  f'FROM public.{table_name} '
-                                  f'ORDER BY date DESC '
-                                  f'LIMIT 1',
-                                  engine)
+    df_recent = pd.read_sql_query(sql=text(f'SELECT date '
+                                           f'FROM public.{table_name} '
+                                           f'ORDER BY date DESC '
+                                           f'LIMIT 1'),
+                                  con=engine.connect())
     recent = df_recent.iloc[0].iat[0]
     return recent
 
 
 def get_holidays_np_array(engine):
-    df_holidays = pd.read_sql_query(f'SELECT * FROM public.holidays', engine)
+    df_holidays = pd.read_sql_query(sql=text(f'SELECT * FROM public.holidays'),
+                                    con=engine.connect())
     # np array with dates from 01-01-2016 to 31-12-2024 when NYSE was or will be closed
     holidays = df_holidays.to_numpy(dtype='datetime64[D]').flatten()
     return holidays
@@ -40,8 +41,8 @@ def load_data_to_db(engine, df, table_name, table_exists):
               index_label='date')
     if not table_exists:
         with engine.connect() as con:
-            con.execute(f'ALTER TABLE {table_name} '
-                        f'ADD PRIMARY KEY (date);')
+            con.execute(text(f'ALTER TABLE {table_name} '
+                             f'ADD PRIMARY KEY (date);'))
 
 
 def get_daily_price(engine):
@@ -160,30 +161,30 @@ def calc_load_daily_price_other_ccy(engine):
         print(f'Pulling {nyse_date_diff} row(s) from {SECURITY_TABLE}')
         print(f'Pulling {forex_date_diff} row(s) from {CURRENCY_TABLE}')
 
-        df_price_usd = pd.read_sql_query(f'SELECT date, "4. close" '
-                                         f'FROM public.{SECURITY_TABLE} '
-                                         f'ORDER BY date DESC '
-                                         f'LIMIT {nyse_date_diff}',
-                                         engine,
+        df_price_usd = pd.read_sql_query(sql=text(f'SELECT date, "4. close" '
+                                                  f'FROM public.{SECURITY_TABLE} '
+                                                  f'ORDER BY date DESC '
+                                                  f'LIMIT {nyse_date_diff}'),
+                                         con=engine.connect(),
                                          index_col="date")
-        df_exchange_rate = pd.read_sql_query(f'SELECT date, "4. close" '
-                                             f'FROM public.{CURRENCY_TABLE} '
-                                             f'ORDER BY date DESC '
-                                             f'LIMIT {forex_date_diff}',
-                                             engine,
+        df_exchange_rate = pd.read_sql_query(sql=text(f'SELECT date, "4. close" '
+                                                      f'FROM public.{CURRENCY_TABLE} '
+                                                      f'ORDER BY date DESC '
+                                                      f'LIMIT {forex_date_diff}'),
+                                             con=engine.connect(),
                                              index_col="date")
 
     else:
         table_exists = False
         print(f'Pulling all rows from {SECURITY_TABLE} and {CURRENCY_TABLE}')
 
-        df_price_usd = pd.read_sql_query(f'SELECT date, "4. close" '
-                                         f'FROM public.{SECURITY_TABLE} ',
-                                         engine,
+        df_price_usd = pd.read_sql_query(sql=text(f'SELECT date, "4. close" '
+                                                  f'FROM public.{SECURITY_TABLE}'),
+                                         con=engine.connect(),
                                          index_col="date")
-        df_exchange_rate = pd.read_sql_query(f'SELECT date, "4. close" '
-                                             f'FROM public.{CURRENCY_TABLE}',
-                                             engine,
+        df_exchange_rate = pd.read_sql_query(sql=text(f'SELECT date, "4. close" '
+                                                      f'FROM public.{CURRENCY_TABLE}'),
+                                             con=engine.connect(),
                                              index_col="date")
 
     df_price_usd.rename(columns={'4. close': 'closePriceUsd'}, inplace=True)
