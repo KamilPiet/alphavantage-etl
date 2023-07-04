@@ -36,15 +36,15 @@ class ComparisonFigure(go.Figure):
         self.subplot_num = i
 
 
-def create_fig(df, fig_type):
-    if fig_type == 'Candlestick':
+def create_fig(df, plot_type):
+    if plot_type == 'Candlestick':
         fig = go.Figure(data=go.Candlestick(x=df['date'],
                                             open=df['1. open'],
                                             high=df['2. high'],
                                             low=df['3. low'],
                                             close=df['4. close'],
                                             name='Price'))
-    elif fig_type == 'Ohlc':
+    elif plot_type == 'Ohlc':
         fig = go.Figure(data=go.Ohlc(x=df['date'],
                                      open=df['1. open'],
                                      high=df['2. high'],
