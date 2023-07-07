@@ -42,23 +42,46 @@ of stocks or ETFs in currencies other than the USD.
 git clone https://github.com/KamilPiet/alphavantage-etl.git
 pip3 install -r ./alphavantage-etl/airflow/requirements.txt
 ```
-- Create a new postgres connection named `postgres_alphavantage` with database details  
-in the Airflow web UI (default URL: `http://localhost:8080/connection/list`)
-- Create following environment variables in the Airflow web UI (default URL: `http://localhost:8080/variable/list/`):
-  - `ALPHAVANTAGE_API_KEY` - your Alpha Vantage API key (it can be obtained 
-[_here_](https://www.alphavantage.co/support/#api-key))
-  - `DATAPANE_TOKEN` - your Datapane token (it can be obtained 
-[_here_](https://cloud.datapane.com/accounts/signup/#starter))
-- Create the table `holidays` in your database:  
+
+- Create a new postgres connection named `postgres_alphavantage` with database details:
+```
+airflow connections add 'postgres_alphavantage' \
+    --conn-uri 'Postgres://<login>:<password>@<host>:<port>/<schema>'
+```
+
+- Create following environment variables:  
+(You can add following lines to ~/.profile or ~/.bash_profile to set these variables permanently)
+```
+export ALPHAVANTAGE_API_KEY=<your Alpha Vantage API key>
+export DATAPANE_TOKEN=<your Datapane token>
+ ```
+An API key and a Datapane token can be obtained [_here_](https://www.alphavantage.co/support/#api-key) 
+and  [_here_](https://cloud.datapane.com/accounts/signup/#starter) respectively
+
+- Create a table `holidays` in your database:  
 ```
 CREATE TABLE holidays (
 date DATE,
 PRIMARY KEY (date)
 );
 ```
+
 - Import the data from `holidays.csv` to the table `holidays`
-- Move `alphavantage_etl_airflow_dag.py` into `<airflow_home_catalog>/dags`
-- Unpause the created DAG (`alphavantage_etl_dag`) in the Airflow web UI (default URL: `http://localhost:8080/home`)
+```
+COPY holidyas(date)
+FROM './alphavantage-etl/holidays.csv'
+DELIMITER ','
+CSV HEADER;
+```
+
+- Move `av_etl.py`, `constants.py` and `data_viz.py` into `$AIRFLOW_HOME/plugins`
+- Move `airflow/av_etl_dag.py` into `$AIRFLOW_HOME/dags`
+- Unpause the created DAG (`alphavantage_etl_dag`):
+```
+mv -t $AIRFLOW_HOME/plugins ./alphavantage-etl/av_etl.py ./alphavantage-etl/constants.py ./alphavantage-etl/data_viz.py 
+mv -t $AIRFLOW_HOME/dags ./alphavantage-etl/airflow/av_etl_dag.py
+airflow dags unpause alphavantage_etl_dag
+```
 
 ### AWS Lambda
 
@@ -72,7 +95,7 @@ PRIMARY KEY (date)
 - Clone this repository and build a Docker container image:  
 ```
 git clone https://github.com/KamilPiet/alphavantage-etl.git
-docker build -t <image_name> ./alphavantage-etl/aws-lambda
+docker build -t <image_name> -f ./alphavantage-etl/aws-lambda/Dockerfile ./alphavantage-etl
 ```
 - Push the image to the AWS Elastic Container Registry (follow steps 2-4 from
 [_this_](https://docs.aws.amazon.com/AmazonECR/latest/userguide/getting-started-cli.html#cli-authenticate-registry)
@@ -83,6 +106,7 @@ please note that the name of the repository must match the name of the built ima
   - Select `Container image` option
   - Click `Browse images`
   - Select the appropriate ECR repository and image
+  - Click `Create function`
 - Create following environment variables in the Labmda function configuration tab:  
   - `ALPHAVANTAGE_API_KEY` - your Alpha Vantage API key (it can be obtained 
 [_here_](https://www.alphavantage.co/support/#api-key))
@@ -101,29 +125,38 @@ PRIMARY KEY (date)
 );
 ```
 - Import the data from `holidays.csv` to the table `holidays`
+```
+COPY holidyas(date)
+FROM './alphavantage-etl/holidays.csv'
+DELIMITER ','
+CSV HEADER;
+```
 
 
 ## Usage
 
 ### General information
 
-- You can select a different stock/ETF and a different currency to be presented in the price report  
-by changing the values of the global variables `SYMBOL` and `CURRENCY` in `alphavantage_etl_airflow.py`   
-or `app.py` (before building the docker image)   
-  ([_here_](https://www.alphavantage.co/query?function=LISTING_STATUS&apikey=demo)
-is a list of all stocks and ETFs available)
+- You can select a different security and a different currency to be presented in the price report  
+by changing the values of the global variables `SYMBOL` and `CURRENCY` in `constants.py`  
+(if the pipeline is to run on AWS Lambda, the change must be made before building the docker image)  
+([_here_](https://www.alphavantage.co/query?function=LISTING_STATUS&apikey=demo)
+is a list of all securities available)
 
 
 ### Apache Airflow
 
-- The DAG will run as scheduled in `alphavantage_etl_airflow.py`  
-(by default it will run at 00:05 after every business day)
-- You can change the schedule by changing the value of the `schedule_interval` parameter when creating the DAG object
-- Alternatively, you can trigger the DAG manually in the Airflow web UI  
-(default URL: `http://localhost:8080/dags/alphavantage_etl_dag`)
+- The DAG will run as scheduled in `airflow/av_etl_dag.py`  
+(by default it will run at 00:05 UTC after every business day)
+- You can change the schedule by changing the value of the `schedule_interval` parameter when creating the DAG object in
+`airflow/av_etl_dag.py`
+- Alternatively, you can trigger the DAG manually:
+```
+airflow dags trigger alphavantage_etl_dag
+```
 
 ### AWS Lambda
 
 - [_Here_](https://docs.aws.amazon.com/lambda/latest/dg/lambda-invocation.html)
 is a guide on how to invoke a Lambda function
-- Alternatively, you can invoke the function by running a test
+- The simplest method to invoke a function is to run a test
