@@ -132,6 +132,8 @@ DELIMITER ','
 CSV HEADER;
 ```
 
+- In the Lambda function configuration tab, increase the timeout value to at least 1 minute and 30 seconds  
+and the memory limit to 512 MB
 
 ## Usage
 
