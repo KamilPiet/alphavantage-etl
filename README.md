@@ -58,22 +58,6 @@ export DATAPANE_TOKEN=<your Datapane token>
 An API key and a Datapane token can be obtained [_here_](https://www.alphavantage.co/support/#api-key) 
 and  [_here_](https://cloud.datapane.com/accounts/signup/#starter) respectively
 
-- Create a table `holidays` in your database:  
-```
-CREATE TABLE holidays (
-date DATE,
-PRIMARY KEY (date)
-);
-```
-
-- Import the data from `holidays.csv` to the table `holidays`
-```
-COPY holidyas(date)
-FROM './alphavantage-etl/holidays.csv'
-DELIMITER ','
-CSV HEADER;
-```
-
 - Move `av_etl.py`, `constants.py` and `data_viz.py` into `$AIRFLOW_HOME/plugins`
 - Move `airflow/av_etl_dag.py` into `$AIRFLOW_HOME/dags`
 - Unpause the created DAG (`alphavantage_etl_dag`):
@@ -117,21 +101,6 @@ please note that the name of the repository must match the name of the built ima
   - `DB_HOST` - database host name
   - `DB_PORT` - database port
   - `DB_NAME` - databese name
-- Create the table `holidays` in your database:  
-```
-CREATE TABLE holidays (
-date DATE,
-PRIMARY KEY (date)
-);
-```
-- Import the data from `holidays.csv` to the table `holidays`
-```
-COPY holidyas(date)
-FROM './alphavantage-etl/holidays.csv'
-DELIMITER ','
-CSV HEADER;
-```
-
 - In the Lambda function configuration tab, increase the timeout value to at least 1 minute and 30 seconds  
 and the memory limit to 512 MB
 
