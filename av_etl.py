@@ -6,6 +6,7 @@ import numpy as np
 from retry import retry
 from sqlalchemy import inspect, text
 from constants import *
+import pandas_market_calendars as mcal
 
 
 def get_recent_row_date(engine, table_name):
@@ -17,14 +18,6 @@ def get_recent_row_date(engine, table_name):
                                   con=engine.connect())
     recent = df_recent.iloc[0].iat[0]
     return recent
-
-
-def get_holidays_np_array(engine):
-    """Get and then return a numpy array with dates on which NYSE is closed."""
-    df_holidays = pd.read_sql_query(sql=text(f'SELECT * FROM public.holidays'),
-                                    con=engine.connect())
-    holidays = df_holidays.to_numpy(dtype='datetime64[D]').flatten()
-    return holidays
 
 
 def pull_data_from_api(params):
@@ -54,10 +47,10 @@ def get_daily_price(engine):
         table_exists = True
 
         recent = get_recent_row_date(engine, SECURITY_TABLE)
-        holidays = get_holidays_np_array(engine)
         # calculates business day difference between the last database record's date and yesterday's date taking into
         # account holidays when NYSE was closed
-        date_diff = np.busday_count(recent, date.today(), holidays=holidays) - 1
+        nyse = mcal.get_calendar('NYSE')
+        date_diff = np.busday_count(recent, date.today(), holidays=nyse.holidays().holidays) - 1
         print(f'Table {SECURITY_TABLE}: {date_diff} business day(s) missing')
 
         if date_diff <= 0:
@@ -152,10 +145,10 @@ def calc_load_daily_price_other_ccy(engine):
         table_exists = True
 
         recent = get_recent_row_date(engine, COMPARISON_TABLE)
-        holidays = get_holidays_np_array(engine)
         # calculates business day difference between the last database record's date and yesterday's date taking into
         # account holidays when NYSE was closed
-        nyse_date_diff = np.busday_count(recent, date.today(), holidays=holidays) - 1
+        nyse = mcal.get_calendar('NYSE')
+        nyse_date_diff = np.busday_count(recent, date.today(), holidays=nyse.holidays().holidays) - 1
         # calculates business day difference between the last database record's date and yesterday's date
         forex_date_diff = np.busday_count(recent, date.today()) - 1
 
