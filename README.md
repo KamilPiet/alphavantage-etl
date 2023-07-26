@@ -7,12 +7,12 @@ is a daily (except weekends) updated demo price report.
 
 This is a simple ETL pipeline written in Python that pulls data from the [Alpha Vantage](https://www.alphavantage.co/) API,  
 loads it into a PostgreSQL database and visualizes it using Plotly and Datapane.  
-It can run as an Apache Airflow DAG or inside a Docker container as an AWS Lambda function.
+It can run as an Apache Airflow DAG, inside a Docker container as an AWS Lambda function or on any machine runnig Linux.
 
 The resulting price report provides an overview of the recent and historical daily exchange rate of USD  
-to the selected currency, as well as the recent and historical daily price of the selected stock or ETF  
-in both USD and the selected currency. This report can be helpful in analyzing price trends  
-of stocks or ETFs in currencies other than the USD.
+against selected currency, as well as the recent and historical daily price of the selected security  
+in both USD and the selected currency. This report can be helpful in analyzing price trends of securities  
+in currencies other than USD.
 
 ## Technologies used
 
