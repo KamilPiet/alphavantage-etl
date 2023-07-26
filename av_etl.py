@@ -68,7 +68,7 @@ def get_daily_price(engine):
         output_size = 'full'
         print('Pulling all available data')
 
-    params = {'function': 'TIME_SERIES_DAILY_ADJUSTED',
+    params = {'function': 'TIME_SERIES_DAILY',
               'symbol': SYMBOL,
               'outputsize': output_size,
               'apikey': str(os.getenv('ALPHAVANTAGE_API_KEY'))}
