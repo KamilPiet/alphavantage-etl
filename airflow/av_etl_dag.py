@@ -4,8 +4,10 @@ from airflow.models.dag import DAG
 from airflow.utils.task_group import TaskGroup
 from sqlalchemy import create_engine
 from datetime import datetime, timezone
+import os
 import av_etl
 import data_viz
+import to_github_pages
 
 
 def create_sql_engine():
@@ -39,12 +41,14 @@ def calc_load_daily_price_other_ccy():
 @task()
 def visualize_data():
     engine = create_sql_engine()
-    data_viz.visualize_data(engine)
+    report = data_viz.visualize_data(engine)
+    working_dir_path = str(os.getenv('AV_ETL_WORKING_DIR_PATH'))
+    to_github_pages.publish_report(report, working_dir_path)
 
 
-# this DAG will be triggered at 00:05 UTC after every business day
+# this DAG will be triggered at 12:00 PM UTC every Sunday
 with DAG(dag_id="alphavantage_etl_dag",
-         schedule_interval="5 0 * * 2-6",
+         schedule_interval="0 12 * * 7",
          start_date=datetime(2022, 12, 1, tzinfo=timezone.utc),
          catchup=False,
          tags=["alphavantage"]) as dag:

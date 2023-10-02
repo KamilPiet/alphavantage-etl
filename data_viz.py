@@ -1,4 +1,3 @@
-import os
 import pandas as pd
 import datapane as dp
 import plotly.graph_objects as go
@@ -159,9 +158,6 @@ def visualize_data(engine):
     fig3.update_yaxes(title_text=f'Close price in {CURRENCY.upper()}', secondary_y=False)
     fig3.update_yaxes(title_text='Close price in USD', secondary_y=True)
 
-    print('Logging in to Datapane...')
-    os.system(f'datapane login --token={os.getenv("DATAPANE_TOKEN")}')
-
     # datapane report
     print('Creating the report...')
     report = dp.App(
@@ -191,5 +187,4 @@ def visualize_data(engine):
             ])
     )
 
-    report.save('/tmp/alphavantage-etl', open=True)
-    report.upload(name='alphavantage-etl')
+    return report
