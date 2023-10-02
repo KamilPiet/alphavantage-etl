@@ -1,7 +1,7 @@
 # Alpha Vantage ETL
 
-[_Here_](https://cloud.datapane.com/apps/63OWlP3/alphavantage-etl/)
-is a daily (except weekends) updated demo price report.
+[_Here_](https://kamilpiet.github.io/)
+is a weekly updated demo price report.
 
 ## General information
 
@@ -17,13 +17,14 @@ in currencies other than USD.
 ## Technologies used
 
 - Python 3.9
-  - Pandas
+  - [pandas](https://pandas.pydata.org/)
   - [Plotly](https://plotly.com/graphing-libraries/)
   - [Datapane](https://datapane.com/)
 - PostgreSQL
 - [Apache Airflow](https://airflow.apache.org/)
 - [AWS Lambda](https://aws.amazon.com/lambda/)
 - [Docker](https://www.docker.com/)
+- GitHub Pages
 
 
 ## Setup
@@ -34,6 +35,7 @@ in currencies other than USD.
 
 - Apache Airflow installed and running
 - PostgreSQL database set up
+- GitHub Pages repository created
 
 #### Setup
 
@@ -52,17 +54,20 @@ airflow connections add 'postgres_alphavantage' \
 - Create following environment variables:  
 (You can add following lines to ~/.profile or ~/.bash_profile to set these variables permanently)
 ```
-export ALPHAVANTAGE_API_KEY=<your Alpha Vantage API key>
-export DATAPANE_TOKEN=<your Datapane token>
+export ALPHAVANTAGE_API_KEY=<your Alpha Vantage API key*>
+export AV_ETL_GITHUB_TOKEN=<your GitHub access token**>
+export AV_ETL_GIT_USERNAME=<your GitHub username>
+export AV_ETL_GIT_EMAIL=<your GitHub email address>
+export AV_ETL_REMOTE_REPO=<URL to your GitHub Pages repository>
+export AV_ETL_WORKING_DIR_PATH=<path to the directory where the price report will be saved and local git repo created>
  ```
-An API key and a Datapane token can be obtained [_here_](https://www.alphavantage.co/support/#api-key) 
-and  [_here_](https://cloud.datapane.com/accounts/signup/#starter) respectively
-
-- Move `av_etl.py`, `constants.py` and `data_viz.py` into `$AIRFLOW_HOME/plugins`
+*An API key can be obtained [_here_](https://www.alphavantage.co/support/#api-key)  
+**The token should include at least the following scopes: repo, read:user, and user:email
+- Move `av_etl.py`, `constants.py`, `data_viz.py` and `to_github_pages.py` into `$AIRFLOW_HOME/plugins`
 - Move `airflow/av_etl_dag.py` into `$AIRFLOW_HOME/dags`
 - Unpause the created DAG (`alphavantage_etl_dag`):
 ```
-mv -t $AIRFLOW_HOME/plugins ./alphavantage-etl/av_etl.py ./alphavantage-etl/constants.py ./alphavantage-etl/data_viz.py 
+mv -t $AIRFLOW_HOME/plugins ./alphavantage-etl/av_etl.py ./alphavantage-etl/constants.py ./alphavantage-etl/data_viz.py ./alphavantage-etl/to_github_pages  
 mv -t $AIRFLOW_HOME/dags ./alphavantage-etl/airflow/av_etl_dag.py
 airflow dags unpause alphavantage_etl_dag
 ```
@@ -74,6 +79,7 @@ airflow dags unpause alphavantage_etl_dag
 - Docker installed and running 
 - AWS CLI installed and configured 
 - PostgreSQL database set up 
+- GitHub Pages repository created
 
 #### Setup
 - Clone this repository and build a Docker container image:  
@@ -94,13 +100,17 @@ please note that the name of the repository must match the name of the built ima
 - Create following environment variables in the Labmda function configuration tab:  
   - `ALPHAVANTAGE_API_KEY` - your Alpha Vantage API key (it can be obtained 
 [_here_](https://www.alphavantage.co/support/#api-key))
-  - `DATAPANE_TOKEN` - your Datapane token (it can be obtained 
-[_here_](https://cloud.datapane.com/accounts/signup/#starter))
-  - `DB_LOGIN` - database login
-  - `DB_PASSWORD` - database password
-  - `DB_HOST` - database host name
-  - `DB_PORT` - database port
-  - `DB_NAME` - databese name
+  - `AV_ETL_GITHUB_TOKEN` - your GitHub access token*
+  - `AV_ETL_GIT_USERNAME` - your GitHub username
+  - `AV_ETL_GIT_EMAIL` - your GitHub email address
+  - `AV_ETL_REMOTE_REPO` - URL to your GitHub Pages repository
+  - `AV_ETL_DB_LOGIN` - database login
+  - `AV_ETL_DB_PASSWORD` - database password
+  - `AV_ETL_DB_HOST` - database host name
+  - `AV_ETL_DB_PORT` - database port
+  - `AV_ETL_DB_NAME` - databese name  
+
+*The token should include at least the following scopes: repo, read:user, and user:email
 - In the Lambda function configuration tab, increase the timeout value to at least 1 minute and 30 seconds  
 and the memory limit to 512 MB
 
@@ -118,7 +128,7 @@ is a list of all securities available)
 ### Apache Airflow
 
 - The DAG will run as scheduled in `airflow/av_etl_dag.py`  
-(by default it will run at 00:05 UTC after every business day)
+(by default it will run at 12:00 PM UTC every Sunday)
 - You can change the schedule by changing the value of the `schedule_interval` parameter when creating the DAG object in
 `airflow/av_etl_dag.py`
 - Alternatively, you can trigger the DAG manually:
@@ -131,3 +141,9 @@ airflow dags trigger alphavantage_etl_dag
 - [_Here_](https://docs.aws.amazon.com/lambda/latest/dg/lambda-invocation.html)
 is a guide on how to invoke a Lambda function
 - The simplest method to invoke a function is to run a test
+
+## Planned improvements  
+
+- Add an option to connect to GitHub via SSH
+- Add a configuration file
+- Make publishing a report on GitHub Pages optional
