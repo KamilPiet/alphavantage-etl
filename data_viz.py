@@ -82,18 +82,20 @@ def visualize_data(engine):
     """Pull the necessary data from the database, calculate SMAs, prepare a datapane report and then upload it."""
     print('Preparing data for the report...')
 
-    df_price_usd = pd.read_sql_query(sql=text(f'SELECT date, "1. open", "2. high", "3. low", "4. close" '
-                                              f'FROM public.{SECURITY_TABLE} '
-                                              f'ORDER BY date DESC'),
-                                     con=engine.connect())
-    df_exchange_rate = pd.read_sql_query(sql=text(f'SELECT * '
-                                                  f'FROM public.{CURRENCY_TABLE} '
+    with engine.connect() as db_con:
+
+        df_price_usd = pd.read_sql_query(sql=text(f'SELECT date, "1. open", "2. high", "3. low", "4. close" '
+                                                  f'FROM public.{SECURITY_TABLE} '
                                                   f'ORDER BY date DESC'),
-                                         con=engine.connect())
-    df_price_other_ccy = pd.read_sql_query(sql=text(f'SELECT * '
-                                                    f'FROM public.{COMPARISON_TABLE} '
-                                                    f'ORDER BY date DESC'),
-                                           con=engine.connect())
+                                         con=db_con)
+        df_exchange_rate = pd.read_sql_query(sql=text(f'SELECT * '
+                                                      f'FROM public.{CURRENCY_TABLE} '
+                                                      f'ORDER BY date DESC'),
+                                             con=db_con)
+        df_price_other_ccy = pd.read_sql_query(sql=text(f'SELECT * '
+                                                        f'FROM public.{COMPARISON_TABLE} '
+                                                        f'ORDER BY date DESC'),
+                                               con=db_con)
 
     df_price_usd['SMA_1'] = df_price_usd['4. close'].rolling(SMA[0]).mean().shift(-SMA[0])
     df_price_usd['SMA_2'] = df_price_usd['4. close'].rolling(SMA[1]).mean().shift(-SMA[1])
