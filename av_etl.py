@@ -11,13 +11,12 @@ import pandas_market_calendars as mcal
 
 def get_recent_row_date(db_con, table_name):
     """Get and then return the date from the most recent row in a given table."""
-    df_recent = pd.read_sql_query(sql=text(f'SELECT date '
-                                           f'FROM public.{table_name} '
-                                           f'ORDER BY date DESC '
-                                           f'LIMIT 1'),
-                                  con=db_con)
-    recent = df_recent.iloc[0].iat[0]
-    return recent
+    recent = db_con.execute(text(f'SELECT date '
+                                 f'FROM public.{table_name} '
+                                 f'ORDER BY date DESC '
+                                 f'LIMIT 1'))
+
+    return recent.fetchone()[0]
 
 
 def pull_data_from_api(params):
@@ -78,8 +77,7 @@ def get_daily_price(engine):
 
         if table_exists:
             df_price_usd = df_price_usd.tail(date_diff)  # keep only those rows, that are missing from the database
-        for col in df_price_usd:
-            df_price_usd[col] = pd.to_numeric(df_price_usd[col])
+        df_price_usd = df_price_usd.apply(pd.to_numeric)
         df_price_usd.index = pd.to_datetime(df_price_usd.index).date
 
         load_data_to_db(engine, db_con, df_price_usd, SECURITY_TABLE, table_exists)
@@ -131,8 +129,7 @@ def get_daily_exchange_rate(engine):
             if table_exists:
                 df_exchange_rate = df_exchange_rate.tail(date_diff-1)
 
-        for col in df_exchange_rate:
-            df_exchange_rate[col] = pd.to_numeric(df_exchange_rate[col])
+        df_exchange_rate = df_exchange_rate.apply(pd.to_numeric)
         df_exchange_rate.index = pd.to_datetime(df_exchange_rate.index).date
 
         load_data_to_db(engine, db_con, df_exchange_rate, CURRENCY_TABLE, table_exists)
@@ -193,9 +190,6 @@ def calc_load_daily_price_other_ccy(engine):
         df_price_other_ccy = df_price_usd.join(df_exchange_rate)
         df_price_other_ccy.dropna(inplace=True)
         df_price_other_ccy[f'closePrice{CURRENCY.title()}'] = \
-            df_price_other_ccy['closePriceUsd'] * df_price_other_ccy['closeRate']
-
-        df_price_other_ccy[f'closePrice{CURRENCY.title()}'] = \
-            round(df_price_other_ccy[f'closePrice{CURRENCY.title()}'], 2)
+            round(df_price_other_ccy['closePriceUsd'] * df_price_other_ccy['closeRate'], 2)
 
         load_data_to_db(engine, db_con, df_price_other_ccy, COMPARISON_TABLE, table_exists)
