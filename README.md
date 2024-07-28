@@ -16,7 +16,7 @@ in currencies other than USD.
 
 ## Technologies used
 
-- Python 3.9
+- Python 3.12
   - [pandas](https://pandas.pydata.org/)
   - [Plotly](https://plotly.com/graphing-libraries/)
   - [Datapane](https://datapane.com/)
@@ -39,10 +39,11 @@ in currencies other than USD.
 
 #### Setup
 
-- Clone this repository and install required modules:  
+- Clone this repository and install the requirements:  
 ```
 git clone https://github.com/KamilPiet/alphavantage-etl.git
 pip3 install -r ./alphavantage-etl/airflow/requirements.txt
+pip3 install -r ./alphavantage-etl/airflow/requirements_2.txt
 ```
 
 - Create a new postgres connection named `postgres_alphavantage` with database details:
@@ -67,7 +68,7 @@ export AV_ETL_WORKING_DIR_PATH=<path to the directory where the price report wil
 - Move `airflow/av_etl_dag.py` into `$AIRFLOW_HOME/dags`
 - Unpause the created DAG (`alphavantage_etl_dag`):
 ```
-mv -t $AIRFLOW_HOME/plugins ./alphavantage-etl/av_etl.py ./alphavantage-etl/constants.py ./alphavantage-etl/data_viz.py ./alphavantage-etl/to_github_pages  
+mv -t $AIRFLOW_HOME/plugins ./alphavantage-etl/av_etl.py ./alphavantage-etl/constants.py ./alphavantage-etl/data_viz.py ./alphavantage-etl/to_github_pages.py  
 mv -t $AIRFLOW_HOME/dags ./alphavantage-etl/airflow/av_etl_dag.py
 airflow dags unpause alphavantage_etl_dag
 ```
